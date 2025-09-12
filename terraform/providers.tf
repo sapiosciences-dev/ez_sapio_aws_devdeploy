@@ -18,7 +18,7 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  prefix     = "eksauto"
+  prefix     = "ekssapio"
   prefix_env = "${local.prefix}-${var.env_name}"
 
   cluster_name    = "${local.prefix_env}-cluster"
