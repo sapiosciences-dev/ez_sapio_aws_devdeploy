@@ -8,6 +8,11 @@ variable analytic_server_docker_image{
   type        = string
   nullable = false
 }
+variable app1_name {
+  description = "The app 1's account_app name, e.g. sapio_limsandeln if the account is sapio and the app is limsandeln. This should match app 1 of issued license."
+  type        = string
+  nullable = false
+}
 
 variable "env_name" {
   description = "Unique identifier for tfvars configuration used"

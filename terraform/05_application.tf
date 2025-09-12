@@ -363,7 +363,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
         }
         env {
           name = "APP_1_ID"
-          value = "sapio_limsandeln"
+          value = var.app1_name
         }
         env {
           name = "APP_1_DB_URL"
