@@ -9,11 +9,11 @@
 # This repo will be created by container build script in Dockerfile in containers directory.
 # It must exist prior to deploy.
 data "aws_ecr_repository" "sapio_app_ecr_repo" {
-  name = "my-sapio-app-repo"
+  name = var.sapio_bls_docker_image_name
 }
 data "aws_ecr_image" "sapio_app_latest" {
   repository_name = data.aws_ecr_repository.sapio_app_ecr_repo.name
-  image_tag       = "latest"
+  image_tag       = var.sapio_bls_docker_image_tag
 }
 resource "random_password" "analytic_server_api_key"{
   length  = 64

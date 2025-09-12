@@ -3,6 +3,17 @@ variable sapio_server_license_data {
   description = "The base64 string of the exemplar.license file granted for the AWS account ID of the terraform user."
   type        = string
 }
+variable sapio_bls_docker_image_name{
+  description = "The docker image name for the sapio bls server, published under your ecr e.g. my-sapio-app"
+  type        = string
+  nullable = false
+}
+variable sapio_bls_docker_image_tag{
+  description = "The docker image tag for the sapio bls server, e.g. latest"
+  type        = string
+  nullable = false
+}
+
 variable analytic_server_docker_image{
   description = "The docker image for the analytic server, e.g. sapiosciences/sapio_analytics_server:25.9"
   type        = string
