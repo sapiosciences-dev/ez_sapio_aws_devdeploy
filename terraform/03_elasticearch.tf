@@ -46,7 +46,7 @@ resource "helm_release" "elasticsearch" {
   }
   set {
     name  = "resources.requests.memory"
-    value = "2Gi"
+    value = "4Gi"
   }
   set {
     name  = "resources.limits.cpu"
@@ -54,7 +54,7 @@ resource "helm_release" "elasticsearch" {
   }
   set {
     name  = "resources.limits.memory"
-    value = "4Gi"
+    value = "8Gi"
   }
 
   # Persistent storage

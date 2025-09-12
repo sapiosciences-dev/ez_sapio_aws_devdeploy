@@ -66,7 +66,7 @@ resource "kubernetes_persistent_volume_claim_v1" "ebs_pvc" {
 
     resources {
       requests = {
-        storage = "100Mi"
+        storage = "100Gi"
       }
     }
 
