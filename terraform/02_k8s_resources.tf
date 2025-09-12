@@ -103,11 +103,26 @@ resource "helm_release" "cluster_autoscaler" {
   chart      = "cluster-autoscaler"
   namespace  = "kube-system"
 
-  set { name = "autoDiscovery.clusterName", value = module.eks.cluster_name }
-  set { name = "awsRegion",                 value = var.aws_region }
-  set { name = "rbac.serviceAccount.create", value = "true" }
-  set { name = "extraArgs.scale-down-delay-after-add", value = "2m" }
-  set { name = "extraArgs.balance-similar-node-groups", value = "true" }
+  set {
+    name = "autoDiscovery.clusterName"
+    value = module.eks.cluster_name
+  }
+  set {
+    name = "awsRegion"
+    value = var.aws_region
+  }
+  set {
+    name = "rbac.serviceAccount.create"
+    value = "true"
+  }
+  set {
+    name = "extraArgs.scale-down-delay-after-add"
+    value = "2m"
+  }
+  set {
+    name = "extraArgs.balance-similar-node-groups"
+    value = "true"
+  }
   # If using IRSA, annotate SA with the IAM role that has autoscaling permissions
   # set { name = "rbac.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn", value = aws_iam_role.ca.arn }
 }

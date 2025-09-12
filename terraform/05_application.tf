@@ -65,7 +65,10 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
         container {
           name  = "${local.app_name}-analytic-server"
           image = local.sapio_image
-          port  { name = "analytic-tcp", container_port = 8686 }
+          port  {
+            name = "analytic-tcp"
+            container_port = 8686
+          }
 
           # IMPORTANT for EKS Auto Mode: set realistic requests
           resources {
@@ -130,11 +133,17 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
 resource "kubernetes_service_v1" "analytic_server_svc" {
   metadata {
     name   = "${local.app_name}-analytic"
-    labels = { app = local.app_name, role = "analytic-server" }
+    labels = {
+      app = local.app_name
+      role = "analytic-server"
+    }
   }
   spec {
     type     = "ClusterIP"
-    selector = { app = local.app_name, role = "analytic-server" }
+    selector = {
+      app = local.app_name
+      role = "analytic-server"
+    }
     port {
       name        = "analytic-tcp"
       port        = 8686
@@ -300,7 +309,10 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
               }
             }
           }
-          env { name = "ES_CA_CERT" value = "/etc/es-ca/ca.crt" }
+          env {
+            name = "ES_CA_CERT"
+            value = "/etc/es-ca/ca.crt"
+          }
           volume_mount {
             name       = "es-ca"
             mount_path = "/etc/es-ca"

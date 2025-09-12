@@ -74,15 +74,42 @@ resource "helm_release" "elasticsearch" {
   }
 
   # Use HTTPS
-  set { name = "protocol" value = "https" }
-  set { name = "secretMounts[0].name"       value = "http-certs" }
-  set { name = "secretMounts[0].secretName" value = kubernetes_secret_v1.es_http_tls.metadata[0].name }
-  set { name = "secretMounts[0].path"       value = "/usr/share/elasticsearch/config/certs" }
-  set { name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.enabled"                  value = "true" }
-  set { name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.enabled"     value = "true" }
-  set { name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.certificate" value = "/usr/share/elasticsearch/config/certs/tls.crt" }
-  set { name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.key"         value = "/usr/share/elasticsearch/config/certs/tls.key" }
-  set { name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.certificate_authorities" value = "/usr/share/elasticsearch/config/certs/ca.crt" }
+  set {
+    name = "protocol"
+    value = "https"
+  }
+  set {
+    name = "secretMounts[0].name"
+    value = "http-certs"
+  }
+  set {
+    name = "secretMounts[0].secretName"
+    value = kubernetes_secret_v1.es_http_tls.metadata[0].name
+  }
+  set {
+    name = "secretMounts[0].path"
+    value = "/usr/share/elasticsearch/config/certs"
+  }
+  set {
+    name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.enabled"
+    value = "true"
+  }
+  set {
+    name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.enabled"
+    value = "true"
+  }
+  set {
+    name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.certificate"
+    value = "/usr/share/elasticsearch/config/certs/tls.crt"
+  }
+  set {
+    name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.key"
+    value = "/usr/share/elasticsearch/config/certs/tls.key"
+  }
+  set {
+    name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.certificate_authorities"
+    value = "/usr/share/elasticsearch/config/certs/ca.crt"
+  }
 
 
   depends_on = [kubernetes_secret_v1.es_http_tls]
