@@ -1,5 +1,5 @@
 env_name            = "dev"
-app1_name = "sapio_limsandeln"
+app1_name           = "sapio_limsandeln"
 aws_region          = "us-east-1"
 eks_cluster_version = "1.32"
 sapio_bls_docker_image_name = "my-sapio-app-dev" # The image published to ECR for Sapio BLS on YOUR ECR repo under same account. MUST EXIST BEFORE DEPLOYMENT.
