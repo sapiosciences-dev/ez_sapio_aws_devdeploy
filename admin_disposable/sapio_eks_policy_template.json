@@ -11,13 +11,19 @@
       "Sid": "TfStateBucketObjects",
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-      "Resource": "arn:aws:s3:::terraform-state-bucket-eks-auto-sapio/*/*"
+      "Resource": "arn:aws:s3:::terraform-state-bucket-eks-auto-sapio/*"
     },
     {
       "Sid": "TfLockTable",
       "Effect": "Allow",
       "Action": ["dynamodb:DescribeTable", "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"],
       "Resource": "arn:aws:dynamodb:<<<REGION>>>:<<<ACCOUNT_ID>>>:table/terraform-lock"
+    },
+    {
+      "Sid": "TfStateBucketMeta",
+      "Effect": "Allow",
+      "Action": ["s3:GetBucketLocation","s3:ListBucket"],
+      "Resource": "arn:aws:s3:::terraform-state-bucket-eks-auto-sapio"
     },
 
     {
@@ -49,7 +55,25 @@
       ],
       "Resource": "*"
     },
-    
+    {
+      "Sid": "EksAddons",
+      "Effect": "Allow",
+      "Action": [
+        "eks:CreateAddon","eks:UpdateAddon","eks:DeleteAddon",
+        "eks:DescribeAddon","eks:ListAddons","eks:DescribeAddonVersions"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IamManagedPoliciesCrud",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreatePolicy","iam:DeletePolicy",
+        "iam:CreatePolicyVersion","iam:DeletePolicyVersion","iam:ListPolicyVersions"
+      ],
+      "Resource": "arn:aws:iam::<<<ACCOUNT_ID>>>:policy/*"
+    },
+
     {
       "Sid": "CreateEksServiceLinkedRoles",
       "Effect": "Allow",
@@ -66,7 +90,7 @@
       }
     },
 
-    
+
     {
       "Sid": "Ec2ForEksNodes",
       "Effect": "Allow",
