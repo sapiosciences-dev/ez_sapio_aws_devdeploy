@@ -1,5 +1,8 @@
 FROM ubuntu:22.04 as addons
 
+# Sapio Platform version to use
+ARG SAPIO_PLATFORM_VERISON=2025.09.09.1949-1146-25_9
+
 RUN apt-get update
 RUN apt-get install unzip
 
@@ -36,7 +39,7 @@ RUN rm *.war
 COPY regeneron-igblast-javaserverplugin.jar /opt/sapiosciences/velox_server/addons/plugins/
 
 
-FROM 659459510985.dkr.ecr.us-east-1.amazonaws.com/sapiosciences/sapio_platform/platform_default:2025.09.09.1949-1146-25_9
+FROM 659459510985.dkr.ecr.us-east-1.amazonaws.com/sapiosciences/sapio_platform/platform_default:$SAPIO_PLATFORM_VERISON
 COPY --from=addons /opt/sapiosciences/velox_server/addons/ /opt/sapiosciences/velox_server/addons/
 
 
