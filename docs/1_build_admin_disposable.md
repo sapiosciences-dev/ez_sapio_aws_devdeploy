@@ -18,7 +18,7 @@ This tutorial assumes you are not familiar with AWS, linux commands, and shell. 
 ## Server Installation Steps
 1. Navigate to the [AWS Management Console](https://aws.amazon.com/console/).
 2. Go to the EC2 Dashboard.
-3. Click on "Launch Instance". Select Ubuntu 22.04 LTS, 64-bit, t3.small.
+3. Click on "Launch Instance". Select Ubuntu 22.04 LTS, 64-bit, c7i.xlarge or equivalent.
 4. Generate a new key if you don't have one. Otherwise, you can use an existing key pair.
 5. Allow SSH traffic from "My IP".
 6. 30GB of gp3 storage should be plenty, you can **encrypt** it.
@@ -48,3 +48,6 @@ aws sts get-caller-identity --query Account --output text
 5. Click "OK" to save the configuration.
 6. Click "File => Open Remote Project", select the configuration you just created, and click "OK".
 7. Open the github repo you cloned earlier.
+8. Install: Terraform and HCL, AWS, Docker, Shell Script marketplace addons on the **host** IDE.
+9. In tools => Terraform and OpenTOFU set the Terraform path to "/usr/bin/terraform". Click "Test". You should see a green checkmrak.
+10. In terraform/00_workspace_check.tf run "init terraform", then "validate terraform" to make sure the script parses.
