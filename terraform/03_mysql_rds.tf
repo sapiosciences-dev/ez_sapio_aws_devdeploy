@@ -4,15 +4,22 @@
 # Logical Order: 03
 ########################################
 # --- Locals (rename the service account for RDS use cases) ---
+# --- Generate a DB password ---
+resource "random_password" "sapio_mysql_root" {
+  length  = 32
+  special = true
+}
+
 locals {
   app_serviceaccount = "app-${local.prefix_env}-serviceaccount"
   oidc               = module.eks.oidc_provider
+  sql_root_user = "sapio"
 }
 
 # --- Subnet group for RDS in your private subnets ---
 resource "aws_db_subnet_group" "sapio_mysql" {
   name       = "${local.prefix_env}-sapio-mysql-subnets"
-  subnet_ids = module.vpc.private_subnet_ids
+  subnet_ids = module.vpc.private_subnets
 
   tags = {
     Environment = local.prefix_env
@@ -49,17 +56,13 @@ resource "aws_security_group_rule" "eks_to_rds" {
   source_security_group_id = module.eks.cluster_security_group_id
 }
 
-# --- Generate a DB password ---
-resource "random_password" "sapio_mysql" {
-  length  = 32
-  special = true
-}
 
 # Make sure we have the right parameter group for MySQL 8.0
 resource "aws_db_parameter_group" "sapio_mysql8" {
-  name   = "${var.name}-mysql8-lctn1"
+  name   = "${var.env_name}-mysql8-lctn1"
   family = "mysql8.0"
 
+  # YQ: Here are Sapio recommended parameters for MySQL 8.0 on RDS.
   # MUST BE lower case table name.
   parameter {
     name         = "lower_case_table_names"
@@ -115,25 +118,39 @@ resource "aws_db_parameter_group" "sapio_mysql8" {
   }
 }
 
+# Secret with desired app password
+# Note this is stored for ENV variables in the app deployment.
+resource "kubernetes_secret_v1" "mysql_root_creds" {
+  metadata {
+    name      = "mysql-root-user"
+    namespace = "sapio" # only sapio app namespace pods can read this secret.
+  }
+  data = {
+    username = local.sql_root_user
+    password = random_password.sapio_mysql_root.result
+  }
+  type = "Opaque"
+}
+
 # --- Primary (writer) MySQL 8.0 instance ---
 resource "aws_db_instance" "sapio_mysql" {
   identifier                 = "${local.prefix_env}-sapio-mysql"
   engine                     = "mysql"
   engine_version             = "8.0"
-  instance_class             = "db.t4g.large"
-  allocated_storage          = 100
+  instance_class             = var.mysql_instance_class
+  allocated_storage          = var.mysql_allocated_storage
   storage_type               = "gp3"
   db_subnet_group_name       = aws_db_subnet_group.sapio_mysql.name
   vpc_security_group_ids     = [aws_security_group.rds_mysql.id]
-  username                   = "sapio"
-  password                   = random_password.sapio_mysql.result
+  username                   = local.sql_root_user
+  password                   = random_password.sapio_mysql_root.result
   port                       = 3306
   publicly_accessible        = false
-  multi_az                   = true
-  backup_retention_period    = 14
+  multi_az                   = var.mysql_multi_az
+  backup_retention_period    = var.mysql_retention_period_days
   deletion_protection        = false
   apply_immediately          = true
-  skip_final_snapshot        = false
+  skip_final_snapshot        = var.mysql_skip_final_snapshot
   parameter_group_name       = aws_db_parameter_group.sapio_mysql8.name
   iam_database_authentication_enabled = true # optional: enable IAM DB auth
 
@@ -141,6 +158,8 @@ resource "aws_db_instance" "sapio_mysql" {
     Environment = local.prefix_env
     Terraform   = "true"
   }
+
+  depends_on = [module.eks]
 }
 
 # --- Read replica (single) ---
@@ -148,13 +167,13 @@ resource "aws_db_instance" "sapio_mysql_replica" {
   identifier             = "${local.prefix_env}-sapio-mysql-replica-1"
   engine                 = "mysql"
   engine_version         = aws_db_instance.sapio_mysql.engine_version
-  instance_class         = "db.t4g.large"
+  instance_class         = var.mysql_instance_class
   replicate_source_db    = aws_db_instance.sapio_mysql.id
   db_subnet_group_name   = aws_db_subnet_group.sapio_mysql.name
   vpc_security_group_ids = [aws_security_group.rds_mysql.id]
   publicly_accessible    = false
   apply_immediately      = true
-  skip_final_snapshot    = true
+  skip_final_snapshot    = var.mysql_skip_final_snapshot
   # Note: For MySQL (non-Aurora), each replica has its own endpoint.
 
   tags = {

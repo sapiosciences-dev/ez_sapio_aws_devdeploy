@@ -66,12 +66,11 @@ resource "kubernetes_persistent_volume_claim_v1" "ebs_pvc" {
 
     resources {
       requests = {
-        storage = "100Gi"
+        storage = var.bls_server_storage_size
       }
     }
 
     storage_class_name = "ebs-storage-class"
-
   }
 
   # Setting this allows `Terraform apply` to continue
@@ -89,7 +88,7 @@ resource "kubernetes_secret_v1" "es_http_tls" {
     namespace = local.es_namespace
   }
   type = "Opaque"
-  string_data = {
+  data = {
     "tls.crt" = file("${path.module}/certs/es-http.crt") # server cert
     "tls.key" = file("${path.module}/certs/es-http.key") # server key
     "ca.crt"  = file("${path.module}/certs/ca.crt")      # issuing CA

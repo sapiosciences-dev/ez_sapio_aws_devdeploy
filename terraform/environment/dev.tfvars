@@ -1,7 +1,47 @@
+# Docker Image Data Variables REPLACE ME!
+sapio_bls_docker_image = "REPLACE_ME"
+analytic_server_docker_image = "sapiosciences/sapio_analytics_server:25.9" # REPLACE_ME
+sapio_server_license_data = "" # REPLACE_ME Base64 of file. If not present, license must be loaded onto /data volume or baked under /opt/sapiosciences of the image.
+
+# Environment Specific Variables
 env_name            = "dev"
-app1_name           = "sapio_limsandeln"
+app1_name           = "sapio_limsandeln" # [Account]_[App] in your license file for app 1.
 aws_region          = "us-east-1"
 eks_cluster_version = "1.32"
-sapio_bls_docker_image_name = "my-sapio-app-dev" # The image published to ECR for Sapio BLS on YOUR ECR repo under same account. MUST EXIST BEFORE DEPLOYMENT.
-sapio_bls_docker_image_tag = "latest" # The tag of the image published to ECR for Sapio BLS on YOUR ECR repo under same account. MUST EXIST BEFORE DEPLOYMENT.
-sapio_server_license_data = "" # Base64 of file. If not present, license must be loaded onto /data volume or baked under /opt/sapiosciences of the image.
+
+# Hardware Spec Under Environment.
+## Elasticsearch Specs
+es_num_desired_masters = 1
+es_num_min_masters     = 1
+es_cpu_request         = "1"
+es_memory_request      = "8Gi"
+es_cpu_limit           = "2"
+es_memory_limit        = "16Gi"
+es_storage_size       = "100Gi"
+
+## MySQL Specs
+mysql_multi_az       = false
+mysql_instance_class = "db.t4g.medium"
+mysql_allocated_storage = 50
+mysql_retention_period_days = 2
+mysql_skip_final_snapshot = true
+
+## Analytic Server
+analytic_server_cpu_request = "1"
+analytic_server_memory_request = "16Gi"
+analytic_server_cpu_limit = "2"
+analytic_server_memory_limit = "32Gi"
+analytic_server_temp_storage_size = "100Gi"
+analytic_server_min_replicas = 1
+analytic_server_max_replicas = 1
+analytic_server_target_cpu_utilization_percentage = 60
+analytic_server_target_memory_utilization_percentage = 70
+
+## Sapio BLS
+# This is Java app so memory limit and request should be identical.
+bls_server_cpu_request = "1"
+bls_server_memory_request = "16Gi"
+bls_server_cpu_limit = "2"
+bls_server_memory_limit = "16Gi"
+bls_server_storage_size = "30Gi"
+bls_server_temp_storage_size = "10Gi"

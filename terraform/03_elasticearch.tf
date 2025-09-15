@@ -10,31 +10,27 @@ resource "random_password" "sapio_elasticsearch" {
 }
 
 locals {
-  es_namespace             = "search"
+  es_namespace             = "elasticsearch"
   es_release_name          = "elasticsearch"
-  es_app_user              = "app_ingest"
-  es_app_password          = random_password.sapio_elasticsearch.result
+  es_app_user              = "sapio_app"
   es_index_pattern         = "*"
-
-  # service account used by your app pods when they need AWS access (e.g., to read secrets)
-  es_app_serviceaccount    = "es-${local.prefix_env}-serviceaccount"
 }
 
 resource "helm_release" "elasticsearch" {
   name             = local.es_release_name
   repository       = "https://helm.elastic.co"
   chart            = "elasticsearch"
-  namespace        = kubernetes_namespace_v1.search.metadata[0].name
-  create_namespace = false
+  namespace        = local.es_namespace
+  create_namespace = true
 
   # Basic production-ish values (3 masters that are also data+ingest)
   set {
     name  = "replicas"
-    value = 3
+    value = var.es_num_desired_masters
   }
   set {
     name  = "minimumMasterNodes"
-    value = 2
+    value = var.es_num_min_masters
   }
   set {
     name  = "esJavaOpts"
@@ -42,19 +38,19 @@ resource "helm_release" "elasticsearch" {
   }
   set {
     name  = "resources.requests.cpu"
-    value = "1000m"
+    value = var.es_cpu_request
   }
   set {
     name  = "resources.requests.memory"
-    value = "4Gi"
+    value = var.es_memory_request
   }
   set {
     name  = "resources.limits.cpu"
-    value = "2000m"
+    value = var.es_cpu_limit
   }
   set {
     name  = "resources.limits.memory"
-    value = "8Gi"
+    value = var.es_memory_limit
   }
 
   # Persistent storage
@@ -64,7 +60,7 @@ resource "helm_release" "elasticsearch" {
   }
   set {
     name  = "volumeClaimTemplate.resources.requests.storage"
-    value = "100Gi"
+    value = var.es_storage_size
   }
 
   # Avoid node sysctl tweak; switch later if you set vm.max_map_count
@@ -112,18 +108,18 @@ resource "helm_release" "elasticsearch" {
   }
 
 
-  depends_on = [kubernetes_secret_v1.es_http_tls]
+  depends_on = [kubernetes_secret_v1.es_http_tls, module.eks]
 }
 
-# Secret with desired app password (namespace "search" so Job can read it)
+# Secret with desired app password (namespace "elasticsearch" so Job can read it)
 resource "kubernetes_secret_v1" "es_app_creds" {
   metadata {
     name      = "es-app-user"
-    namespace = local.es_namespace
+    namespace = "sapio" #YQ: Expose elasticsearch app password to sapio app namespaced pods
   }
-  string_data = {
+  data = {
     username = local.es_app_user
-    password = local.es_app_password
+    password = random_password.sapio_elasticsearch.result
   }
   type = "Opaque"
 }
@@ -196,7 +192,7 @@ resource "kubernetes_job_v1" "es_bootstrap_permissions" {
         volume {
           name = "app-creds"
           secret {
-            secret_name = kubernetes_secret_v1.es_app_creds.metadata[0].name
+            secret_name = random_password.sapio_elasticsearch.result
             items {
               key  = "password"
               path = "user_pw"
@@ -228,7 +224,9 @@ resource "kubernetes_network_policy_v1" "allow_sapio_to_es" {
           match_labels = { kubernetes_io_metadata_name = "default" }
         }
         pod_selector {
-          match_labels = { app = local.sapio_bls_app_name } # matches your Deployment labels
+          match_labels = {
+            namespace = "sapio"
+          } # matches your Deployment labels
         }
       }
       ports {
