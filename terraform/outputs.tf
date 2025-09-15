@@ -26,3 +26,29 @@ output "aws_region" {
   value       = var.aws_region
 }
 
+
+# --- Outputs for app wiring to MySQL RDS ---
+output "sapio_rds_writer_endpoint" {
+  value = aws_db_instance.sapio_mysql.address
+}
+
+output "sapio_rds_writer_port" {
+  value = aws_db_instance.sapio_mysql.port
+}
+
+output "sapio_rds_replica_endpoint" {
+  value = aws_db_instance.sapio_mysql_replica.address
+}
+
+# --- Outputs for Sapio BLS ---
+locals {
+  bls_lb_host = coalesce(
+    try(kubernetes_service_v1.sapio_bls_nlb.status[0].load_balancer[0].ingress[0].hostname, ""),
+    try(kubernetes_service_v1.sapio_bls_nlb.status[0].load_balancer[0].ingress[0].ip, ""),
+    ""
+  )
+}
+
+output "sapio_bls_external_url" {
+  value = length(local.bls_lb_host) > 0 ? bls_lb_host : "Sapio BLS external endpoint is provisioning..."
+}

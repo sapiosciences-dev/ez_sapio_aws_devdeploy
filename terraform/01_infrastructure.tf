@@ -102,7 +102,7 @@ module "eks" {
 }
 
 locals {
-  node_security_group_id = module.eks.node_security_group_id
+  publish_security_group = module.eks.node_security_group_id
 }
 
 # Create VPC endpoints (Private Links) for SSM Session Manager access to nodes
@@ -115,8 +115,42 @@ resource "aws_security_group" "vpc_endpoint_sg" {
     from_port       = 443
     to_port         = 443
     protocol        = "tcp"
-    security_groups = [local.node_security_group_id]
+    security_groups = [local.publish_security_group]
+    cidr_blocks     = var.user_cidr_blocks
   }
+  ingress {
+    description = "healthcheck"
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = var.user_cidr_blocks
+    security_groups = [local.publish_security_group]
+  }
+  ingress {
+    description = "Allow RMI"
+    from_port   = 1099
+    to_port     = 1099
+    protocol    = "tcp"
+    cidr_blocks = var.admin_cidr_blocks
+    security_groups = [local.publish_security_group]
+  }
+  ingress {
+    description = "Allow Debug"
+    from_port   = 5005
+    to_port     = 5005
+    protocol    = "tcp"
+    cidr_blocks = var.admin_cidr_blocks
+    security_groups = [local.publish_security_group]
+  }
+  ingress {
+    description = "Allow SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = var.admin_cidr_blocks
+    security_groups = [local.publish_security_group]
+  }
+
 
   egress {
     from_port   = 0

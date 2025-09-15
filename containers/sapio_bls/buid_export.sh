@@ -1,5 +1,18 @@
 #!/bin/bash
 
+echo "📋 Sapio EZ EKS Application Deployment Prebuild Checklist:"
+echo "👉 1. Ensure Dockerfile is present in the current directory."
+echo "👉 2. Verify AWS CLI is configured with appropriate permissions."
+echo "👉 3. Confirm you have access to the ECR repository."
+echo "👉 4. Make sure Docker is installed and running."
+echo "👉 5. Check platform version in argument of the Dockerfile."
+echo "👉 6. Upload files/foundations.jar for the Sapio Foundations extractor to include in docker image."
+echo "👉 7. Upload files/analytics.jar for the Sapio Analytics extractor to include in docker image."
+echo "👉 8. Upload files/customizations.jar for the Sapio Customizations extractor to include in docker image. (Optional)"
+printf "✅ If all checks are complete, press [Enter] to continue..."
+read -r
+
+
 docker='docker'
 
 NAME=my-sapio-app-dev

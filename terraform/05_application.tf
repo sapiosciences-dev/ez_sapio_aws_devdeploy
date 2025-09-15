@@ -262,7 +262,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
   }
 
   spec {
-    replicas = 1
+    replicas = 1 # DO NOT MODIFY
     selector {
       match_labels = {
         app = local.sapio_bls_app_name
@@ -276,11 +276,11 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
         }
       }
       spec {
+        #YQ: The BLS does not have autoscale capability, so we will directly expose without a service.
         service_account_name = local.app_serviceaccount
         container {
           image = var.sapio_bls_docker_image
           name  = "${local.sapio_bls_app_name}-sapio-app-pod"
-
           port {
             container_port = 443
             name           = "https"
@@ -366,9 +366,10 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           env {
             name = "ROOT_DB_PASSWORD"
             value_from {
-              secret_key_ref {}
-              name = kubernetes_secret_v1.mysql_root_creds.metadata[0].name
-              key  = "password"
+              secret_key_ref {
+                name = kubernetes_secret_v1.mysql_root_creds.metadata[0].name
+                key  = "password"
+              }
             }
           }
           env {
@@ -446,7 +447,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           }
           env {
             name  = "SapioNativeExecHost"
-            value = "${kubernetes_service_v1.analytic_server_svc.metadata[0].name}.default.svc"
+            value = "${kubernetes_service_v1.analytic_server_svc.metadata[0].name}.${kubernetes_service_v1.analytic_server_svc.metadata[0].namespace}.svc"
           }
           env {
             name  = "SapioNativeExecPort"
@@ -501,4 +502,57 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
   # Give time for the cluster to complete (controllers, RBAC and IAM propagation)
   # See https://github.com/setheliot/eks_auto_mode/blob/main/docs/separate_configs.md
   depends_on = [module.eks, helm_release.cluster_autoscaler, aws_db_instance.sapio_mysql, aws_db_instance.sapio_mysql_replica]
+}
+
+# There is no LB support. But replica = 1 means there is no replica. This is the easiest way to export the app.
+resource "kubernetes_service_v1" "sapio_bls_nlb" {
+  wait_for_load_balancer = true
+  metadata {
+    name      = "${local.sapio_bls_app_name}-ext"
+    namespace = "sapio"
+    labels    = { app = local.sapio_bls_app_name }
+    annotations = {
+      # Tell AWS LB Controller to create an NLB and target pod IPs directly
+      "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type" = "ip"
+      "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
+
+      # Health check (TCP on 443) — or switch to HTTP 8088 if you have an HTTP health endpoint
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol" = "TCP"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-port"     = "8088"
+    }
+  }
+  spec {
+    type     = "LoadBalancer"
+    selector = { app = local.sapio_bls_app_name }   # same pods
+    port {
+      name        = "https"
+      port        = 443          # NLB listener port
+      target_port = "https"      # must match your container port name (443)
+      protocol    = "TCP"
+    }
+    port {
+      name        = "rmi"
+      port        = 1099
+      target_port = "rmi"
+      protocol    = "TCP"
+    }
+    port {
+      name        = "debug"
+      port        = 5005
+      target_port = "debug"
+      protocol    = "TCP"
+    }
+    port {
+      name        = "healthcheck"
+      port        = 8088
+      target_port = "healthcheck"
+      protocol    = "TCP"
+    }
+    port {
+      name = "ssh"
+      port = 22
+      target_port = 22
+      protocol = "TCP"
+    }
+  }
 }
