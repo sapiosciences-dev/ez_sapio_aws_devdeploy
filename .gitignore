@@ -37,3 +37,4 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+/admin_disposable/sapio_eks_policy.json
