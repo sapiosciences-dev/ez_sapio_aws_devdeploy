@@ -16,7 +16,7 @@ terraform {
     bucket         = "terraform-state-bucket-eks-auto-sapio"
     key            = "sapio-tf/us-east-1/terraform.tfstate"
     dynamodb_table = "terraform-lock"
-    region         = us-east-1
+    region         = "us-east-1"
     encrypt        = true # For newbies: No customer managed key material for terraform state encryption. This uses S3 default encryption key.
     # kms_key_id     = "arn:aws:kms:REGION:ACCOUNT:key/XXXX-XXXX" # Optional, if you want to use custom KMS key for encryption
   }
