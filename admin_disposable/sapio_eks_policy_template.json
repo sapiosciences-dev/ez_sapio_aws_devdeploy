@@ -142,9 +142,14 @@
       "Sid": "EcrPushPull",
       "Effect": "Allow",
       "Action": [
-        "ecr:GetAuthorizationToken",
+        "ecr:GetAuthorizationToken","ecr:PutLifecyclePolicy","ecr:ReplicateImage","ecr:UpdatePullThroughCacheRule","ecr:StartImageScan","ecr:PutAccountSetting",
+        "ecr:PutImageTagMutability","ecr:PutReplicationConfiguration","ecr:PutImageScanningConfiguration","ecr:PutRegistryScanningConfiguration",
+        "ecr:PutRegistryPolicy",
         "ecr:CreateRepository","ecr:DescribeRepositories","ecr:DeleteRepository","ecr:SetRepositoryPolicy","ecr:GetRepositoryPolicy","ecr:TagResource","ecr:UntagResource",
-        "ecr:BatchCheckLayerAvailability","ecr:InitiateLayerUpload","ecr:UploadLayerPart","ecr:CompleteLayerUpload","ecr:PutImage","ecr:DescribeImages","ecr:BatchDeleteImage"
+        "ecr:BatchCheckLayerAvailability","ecr:InitiateLayerUpload","ecr:UploadLayerPart","ecr:CompleteLayerUpload","ecr:PutImage","ecr:DescribeImages",
+        "ecr:BatchGetImage","ecr:BatchGetRepositoryScanningConfiguration","ecr:DescribeImageScanFindings","ecr:DescribeRegistry","ecr:GetAccountSetting",
+        "ecr:DescribeRepositoryCreationTemplates","ecr:GetDownloadUrlForLayer","ecr:GetImageCopyStatus","ecr:GetRegistryPolicy","ecr:GetLifecyclePolicyPreview",
+        "ecr:GetRegistryScanningConfiguration","ecr:ValidatePullThroughCacheRule"
       ],
       "Resource": "*"
     },
@@ -153,11 +158,30 @@
       "Sid": "Elbv2",
       "Effect": "Allow",
       "Action": [
-        "elasticloadbalancing:CreateLoadBalancer","elasticloadbalancing:DeleteLoadBalancer","elasticloadbalancing:DescribeLoadBalancers",
-        "elasticloadbalancing:CreateTargetGroup","elasticloadbalancing:DeleteTargetGroup","elasticloadbalancing:ModifyTargetGroup","elasticloadbalancing:DescribeTargetGroups",
-        "elasticloadbalancing:RegisterTargets","elasticloadbalancing:DeregisterTargets",
-        "elasticloadbalancing:CreateListener","elasticloadbalancing:DeleteListener","elasticloadbalancing:ModifyListener","elasticloadbalancing:DescribeListeners",
+        "elasticloadbalancing:DescribeLoadBalancers","elasticloadbalancing:DescribeInstanceHealth",
+        "elasticloadbalancing:DescribeLoadBalancerAttributes","elasticloadbalancing:DescribeLoadBalancerPolicies",
+        "elasticloadbalancing:DescribeLoadBalancerPolicyTypes","elasticloadbalancing:DescribeTags",
+        "elasticloadbalancing:ApplySecurityGroupsToLoadBalancer","elasticloadbalancing:AttachLoadBalancerToSubnets",
+        "elasticloadbalancing:ConfigureHealthCheck","elasticloadbalancing:CreateAppCookieStickinessPolicy",
+        "elasticloadbalancing:CreateLBCookieStickinessPolicy","elasticloadbalancing:CreateLoadBalancer",
+        "elasticloadbalancing:CreateLoadBalancerListeners","elasticloadbalancing:CreateLoadBalancerPolicy",
+        "elasticloadbalancing:DeleteLoadBalancer","elasticloadbalancing:DeleteLoadBalancerListeners",
+        "elasticloadbalancing:DeleteLoadBalancerPolicy","elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
+        "elasticloadbalancing:DetachLoadBalancerFromSubnets","elasticloadbalancing:DisableAvailabilityZonesForLoadBalancer",
+        "elasticloadbalancing:EnableAvailabilityZonesForLoadBalancer","elasticloadbalancing:ModifyLoadBalancerAttributes",
+        "elasticloadbalancing:RegisterInstancesWithLoadBalancer","elasticloadbalancing:SetLoadBalancerListenerSSLCertificate",
+        "elasticloadbalancing:SetLoadBalancerPoliciesForBackendServer","elasticloadbalancing:SetLoadBalancerPoliciesOfListener",
         "elasticloadbalancing:AddTags","elasticloadbalancing:RemoveTags"
+      ],
+      "Resource": "*"
+    },
+
+    {
+      "Sid": "SecretManagement",
+      "Effect": "Allow",
+      "Action": [
+        "kms:DescribeKey", "kms:CreateGrant", "kms:Decrypt", "kms:GenerateDataKey",
+        "secretsmanager:CreateSecret", "secretsmanager:TagResource"
       ],
       "Resource": "*"
     },
