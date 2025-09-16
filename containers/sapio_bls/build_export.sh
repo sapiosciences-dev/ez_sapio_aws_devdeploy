@@ -17,7 +17,7 @@ if ! command -v aws &> /dev/null; then
     exit 1
 fi
 
-docker='docker'
+docker='sudo docker'
 if ! command -v docker &> /dev/null; then
     echo "🫵 Docker is not installed. Please install Docker and try again."
     exit 1
