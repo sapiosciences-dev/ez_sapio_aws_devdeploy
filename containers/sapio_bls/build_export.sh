@@ -32,6 +32,17 @@ if [ $? -ne 0 ]; then
     echo "🫵 AWS Account is not entitled to access Sapio ECR. Please contact Sapio support."
     exit 1
 fi
+# Find the platform version to pull ARG SAPIO_PLATFORM_VERISON="2025.09.09.1949-1146-25_9"
+SAPIO_PLATFORM_VERISON=$(grep 'ARG SAPIO_PLATFORM_VERISON=' Dockerfile | cut -d '=' -f2 | tr -d '"')
+if [ -z "$SAPIO_PLATFORM_VERISON" ]; then
+    echo "🫵 Could not find SAPIO_PLATFORM_VERISON in Dockerfile. Please ensure it is set correctly in Dockerfile."
+    exit 1
+fi
+$docker pull "${SAPIO_ECR_NAME}/sapiosciences/sapio_platform/platform_default:${SAPIO_PLATFORM_VERISON}"
+if [ $? -ne 0 ]; then
+    echo "🫵 Failed to pull Sapio platform image. Please check the Sapio AWS entitlements."
+    exit 1
+fi
 
 NAME=my-sapio-app-dev
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
