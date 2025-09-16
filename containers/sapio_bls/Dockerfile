@@ -1,7 +1,8 @@
+# Sapio Platform version to use
+ARG SAPIO_PLATFORM_VERISON="2025.09.09.1949-1146-25_9"
+
 FROM ubuntu:22.04 as addons
 
-# Sapio Platform version to use
-ARG SAPIO_PLATFORM_VERISON=2025.09.09.1949-1146-25_9
 
 RUN apt-get update
 RUN apt-get install unzip
