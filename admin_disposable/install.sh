@@ -2,6 +2,8 @@
 set -euo pipefail
 echo "================================================="
 echo "🚀 Installing AWS CLI, Terraform, and Docker"
+echo "👉 This script was prepared for Ubuntu 22.04+."
+echo "🔴 If you are not using Ubuntu, EXIT NOW."
 echo "================================================="
 sudo apt-get update && sudo apt-get install -y gnupg software-properties-common
 wget -O- https://apt.releases.hashicorp.com/gpg | \
@@ -12,7 +14,7 @@ gpg --no-default-keyring \
 --fingerprint
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release || lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
 sudo apt update
-sudo apt install awscli terraform docker.io -y
+sudo apt install awscli terraform docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
 
 echo "================================================="
 echo "✅ Installed AWS CLI, Terraform, and Docker"
