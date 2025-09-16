@@ -5,6 +5,9 @@ echo "🚀 Installing AWS CLI, Terraform, and Docker"
 echo "👉 This script was prepared for Ubuntu 22.04+."
 echo "🔴 If you are not using Ubuntu, EXIT NOW."
 echo "================================================="
+printf "Press [Enter] to continue..."
+read -r
+
 sudo apt-get update && sudo apt-get install -y gnupg software-properties-common
 wget -O- https://apt.releases.hashicorp.com/gpg | \
 gpg --dearmor | \
