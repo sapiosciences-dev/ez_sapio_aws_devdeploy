@@ -158,20 +158,7 @@
       "Sid": "Elbv2",
       "Effect": "Allow",
       "Action": [
-        "elasticloadbalancing:DescribeLoadBalancers","elasticloadbalancing:DescribeInstanceHealth",
-        "elasticloadbalancing:DescribeLoadBalancerAttributes","elasticloadbalancing:DescribeLoadBalancerPolicies",
-        "elasticloadbalancing:DescribeLoadBalancerPolicyTypes","elasticloadbalancing:DescribeTags",
-        "elasticloadbalancing:ApplySecurityGroupsToLoadBalancer","elasticloadbalancing:AttachLoadBalancerToSubnets",
-        "elasticloadbalancing:ConfigureHealthCheck","elasticloadbalancing:CreateAppCookieStickinessPolicy",
-        "elasticloadbalancing:CreateLBCookieStickinessPolicy","elasticloadbalancing:CreateLoadBalancer",
-        "elasticloadbalancing:CreateLoadBalancerListeners","elasticloadbalancing:CreateLoadBalancerPolicy",
-        "elasticloadbalancing:DeleteLoadBalancer","elasticloadbalancing:DeleteLoadBalancerListeners",
-        "elasticloadbalancing:DeleteLoadBalancerPolicy","elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
-        "elasticloadbalancing:DetachLoadBalancerFromSubnets","elasticloadbalancing:DisableAvailabilityZonesForLoadBalancer",
-        "elasticloadbalancing:EnableAvailabilityZonesForLoadBalancer","elasticloadbalancing:ModifyLoadBalancerAttributes",
-        "elasticloadbalancing:RegisterInstancesWithLoadBalancer","elasticloadbalancing:SetLoadBalancerListenerSSLCertificate",
-        "elasticloadbalancing:SetLoadBalancerPoliciesForBackendServer","elasticloadbalancing:SetLoadBalancerPoliciesOfListener",
-        "elasticloadbalancing:AddTags","elasticloadbalancing:RemoveTags"
+        "elasticloadbalancing:*"
       ],
       "Resource": "*"
     },
