@@ -1,4 +1,4 @@
-# Publishing Sapio BLS Container
+# Step 2: Publishing Sapio BLS Container
 This guide will walk you through the steps to publish a Sapio BLS container. Follow the instructions below to ensure a successful publication.
 
 ## Prerequisites
