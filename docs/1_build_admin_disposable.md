@@ -35,10 +35,9 @@ Copy the policy to clipboard. Alternatively, download the policy using SFTP clie
 10. In IAM console, create a policy "sapio-eks-admin-disposable", paste the policy you copied earlier, and create the policy. 
 11. Go to EC2 console, select the instance you created earlier, click "Actions" -> "Security" -> "Modify IAM Role", click "Create Role", select "AWS Service" -> "EC2", click "Next: Permissions", search for the policy you created earlier, select it, click "Next: Tags", click "Next: Review", give the role a name such as "sapio-eks-admin-disposable-role", click "Create Role". Go back to the instance, select the role you just created, and click "Update IAM Role".
 12. Run "install.sh" under admin_disposable folder to install AWS CLI, kubectl, eksctl, and helm.
-13. Confirm in EC2 console, security tab, you should see the IAM role you just assigned. In the SSH console, type the following command to confirm the role is assigned.
-```shell
-aws sts get-caller-identity --query Account --output text
-```
+> 💡 TIP
+>
+> To run a script, you can right-click it from Remote Development IDE project tree on the left, and then click the "Run" button.
 
 ## Client UI Workspace
 1. Download PyCharm or IntelliJ Idea Community Edition.
@@ -49,5 +48,4 @@ aws sts get-caller-identity --query Account --output text
 6. Click "File => Open Remote Project", select the configuration you just created, and click "OK".
 7. Open the github repo you cloned earlier.
 8. Install: Terraform and HCL, AWS, Docker, Shell Script marketplace addons on the **host** IDE.
-9. In tools => Terraform and OpenTOFU set the Terraform path to "/usr/bin/terraform". Click "Test". You should see a green checkmrak.
-10. In terraform/00_workspace_check.tf run "init terraform", then "validate terraform" to make sure the script parses.
+9. In tools => Terraform and OpenTOFU set the Terraform path to "/usr/bin/terraform". Click "Test". You should see a green checkmark.
