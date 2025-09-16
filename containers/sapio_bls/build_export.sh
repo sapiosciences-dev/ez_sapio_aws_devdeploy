@@ -40,15 +40,16 @@ LATEST_TAG=${ECR_NAME}/${NAME}:latest
 echo "================================================="
 echo "✅ Received AWS Account ID: ${ACCOUNT_ID} from AWS STS"
 echo "================================================="
-aws ecr get-login-password --region us-east-1 | $docker login --username AWS --password-stdin "${ECR_NAME}"
-echo "================================================="
-echo "✅ Logged in to ECR: ${ECR_NAME}"
-echo "================================================="
 
 echo "================================================="
 echo "🚀 Building and Pushing Docker Image: ${LATEST_TAG}"
 echo "================================================="
 $docker build . -t "${LATEST_TAG}"
+
+aws ecr get-login-password --region us-east-1 | $docker login --username AWS --password-stdin "${ECR_NAME}"
+echo "================================================="
+echo "✅ Logged in to ECR: ${ECR_NAME}"
+echo "================================================="
 docker push "${LATEST_TAG}"
 
 echo "================================================="
