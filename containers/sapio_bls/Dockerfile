@@ -24,18 +24,9 @@ RUN if test -f customizations.jar; then  \
     else echo "WARNING: customizations.jar not found. Skipping";  \
     fi
 
-RUN mv wars clientplugins;
-RUN mv applib sharedlib
-
 RUN chown -R 1000:1000 /opt/sapiosciences/velox_server/addons
 
 RUN rm /opt/sapiosciences/velox_server/addons/*.jar
-
-WORKDIR /opt/sapiosciences/velox_server/addons/clientplugins
-RUN find . -name "*.war" | while read filename; do unzip -o -d "`basename -s .war "$filename"`" "$filename"; done;
-RUN rm *.war
-
-
 COPY files/systemdevtools.jar /opt/sapiosciences/velox_server/addons/plugins/
 
 
