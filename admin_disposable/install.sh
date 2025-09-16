@@ -34,6 +34,8 @@ echo \
 sudo apt-get update
 
 sudo apt update
+# Remove all unoffical Docker versions from official apt.
+for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
 sudo apt install awscli terraform docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
 
 echo "================================================="
