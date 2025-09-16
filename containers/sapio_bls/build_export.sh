@@ -12,8 +12,16 @@ echo "👉 8. Upload files/customizations.jar for the Sapio Customizations extra
 printf "✅ If all checks are complete, press [Enter] to continue..."
 read -r
 
+if ! command -v aws &> /dev/null; then
+    echo "🫵 AWS CLI is not installed. Please install AWS CLI and try again."
+    exit 1
+fi
 
 docker='docker'
+if ! command -v docker &> /dev/null; then
+    echo "🫵 Docker is not installed. Please install Terraform and try again."
+    exit 1
+fi
 
 NAME=my-sapio-app-dev
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
