@@ -15,8 +15,8 @@ COPY files/analytics.jar /opt/sapiosciences/velox_server/addons/analytics.jar
 COPY customization?.jar /opt/sapiosciences/velox_server/addons/customizations.jar
 
 WORKDIR /opt/sapiosciences/velox_server/addons/
-RUN java -jar analytics.jar "*lib/*" "plugins/*" "wars/*"
-RUN java -jar foundations.jar "*lib/*" "plugins/*" "wars/*"
+RUN java -jar analytics.jar
+RUN java -jar foundations.jar
 RUN if test -f customizations.jar; then  \
     echo "customizations.jar found. Extracting...";  \
     java -jar customizations.jar "*lib/*" "plugins/*" "wars/*"; \
