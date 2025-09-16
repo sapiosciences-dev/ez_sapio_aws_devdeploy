@@ -251,9 +251,9 @@ echo -e "\n=========================="
 # Wait for 10 seconds
 echo -n "🔄 Getting URL. Please stand by..."
 for i in {1..1000}; do
-    terraform output -var-file="$TFVARS_FILE" -raw sapio_bls_external_url
+    EXTERNAL_URL_OUTPUT=$(terraform output -var-file="$TFVARS_FILE" -raw sapio_bls_external_url)
     # If output is "Sapio BLS external endpoint is provisioning..." then keep waiting
-    if [ "$(terraform output -var-file="$TFVARS_FILE" -raw sapio_bls_external_url)" != "Sapio BLS external endpoint is provisioning..." ]; then
+    if [ "$EXTERNAL_URL_OUTPUT" != "Sapio BLS external endpoint is provisioning..." ]; then
         echo "⭐️ Here is the URL of you newly deployed application running on EKS:"
         echo "💻    http://$URL    "
         echo "⏳ Please be patient. It may take up to a minute to become available"

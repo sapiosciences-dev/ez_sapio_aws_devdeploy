@@ -40,7 +40,7 @@ if ! getent group docker > /dev/null 2>&1; then
 fi
 sudo usermod -aG docker "$USER"
 newgrp docker
-RECEIVED=docker run hello-world
+RECEIVED=$(docker run hello-world)
 if [[ $RECEIVED == *"Hello from Docker!"* ]]; then
     echo "================================================="
     echo "✅ Docker is installed and running. Installing user added to docker group."
