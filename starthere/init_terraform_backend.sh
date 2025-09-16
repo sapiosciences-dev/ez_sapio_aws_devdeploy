@@ -7,7 +7,7 @@ BUCKET_NAME=terraform-state-bucket-eks-auto-sapio
 LOCK_TABLE=terraform-lock
 
 check_s3_bucket() {
-    if aws s3api head-bucket --bucket "$BUCKET_NAME" --region "$BE_REGION" 2>/dev/null; then
+    if aws s3api head-bucket --bucket "$BUCKET_NAME" --region "$REGION" 2>/dev/null; then
       echo "❌ S3 bucket '$BUCKET_NAME' already exists."
       exit 1
     else
@@ -16,7 +16,7 @@ check_s3_bucket() {
 }
 
 check_dynamodb_table() {
-    if aws dynamodb describe-table --table-name "$DDB_TABLE_NAME" --region "$BE_REGION" >/dev/null 2>&1; then
+    if aws dynamodb describe-table --table-name "$DDB_TABLE_NAME" --region "$REGION" >/dev/null 2>&1; then
         echo "❌ DynamoDB table '$DDB_TABLE_NAME' already exists."
         exit 1
     else
