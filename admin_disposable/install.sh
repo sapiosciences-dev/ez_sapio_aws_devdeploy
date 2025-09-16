@@ -61,3 +61,5 @@ else
   echo "❌ Docker test failed. Try logging out/in or check Docker service logs."
   exit 1
 fi
+
+echo "✅✅✅ All admin disposable tools installed"
