@@ -5,7 +5,6 @@
 # Save the modified content to sapio_eks_policy.json
 
 
-read -r -p "Enter your AWS Region (e.g., us-east-1): " AWS_REGION
 read -r -p "Enter your AWS Account ID (12-digit number): " AWS_ACCOUNT
 # auto-remove "-" anywhere in the account ID, if any
 AWS_ACCOUNT="${AWS_ACCOUNT//[- ]/}"
@@ -24,7 +23,7 @@ if [[ -f $OUTPUT_FILE ]]; then
     rm "$OUTPUT_FILE"
 fi
 
-sed -e "s/<<<REGION>>>/$AWS_REGION/g" -e "s/<<<ACCOUNT_ID>>>/$AWS_ACCOUNT/g" "$TEMPLATE_FILE" > "$OUTPUT_FILE"
+sed -e "s/<<<ACCOUNT_ID>>>/$AWS_ACCOUNT/g" "$TEMPLATE_FILE" > "$OUTPUT_FILE"
 if [[ $? -ne 0 ]]; then
     echo "❌ Error: Failed to create $OUTPUT_FILE."
     exit 1

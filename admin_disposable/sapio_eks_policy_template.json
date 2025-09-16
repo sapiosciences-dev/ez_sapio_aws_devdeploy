@@ -17,7 +17,7 @@
       "Sid": "TfLockTable",
       "Effect": "Allow",
       "Action": ["dynamodb:DescribeTable", "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"],
-      "Resource": "arn:aws:dynamodb:<<<REGION>>>:<<<ACCOUNT_ID>>>:table/terraform-lock"
+      "Resource": "arn:aws:dynamodb:us-east-1:<<<ACCOUNT_ID>>>:table/terraform-lock"
     },
     {
       "Sid": "TfStateBucketMeta",
