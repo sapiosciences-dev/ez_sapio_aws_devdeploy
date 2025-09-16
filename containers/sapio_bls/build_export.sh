@@ -61,7 +61,7 @@ aws ecr get-login-password --region us-east-1 | $docker login --username AWS --p
 echo "================================================="
 echo "✅ Logged in to ECR: ${ECR_NAME}"
 echo "================================================="
-docker push "${LATEST_TAG}"
+$docker push "${LATEST_TAG}"
 
 echo "================================================="
 echo "✅ Successfully pushed Docker Image: ${LATEST_TAG}"
@@ -73,7 +73,7 @@ if [[ $create_tag == "y" ]]; then
     read -r version_tag
     VERSIONED_TAG=${ECR_NAME}/${NAME}:${version_tag}
     $docker tag "${LATEST_TAG}" "${VERSIONED_TAG}"
-    docker push "${VERSIONED_TAG}"
+    $docker push "${VERSIONED_TAG}"
     echo "================================================="
     echo "✅ Successfully pushed Versioned Docker Image: ${VERSIONED_TAG}"
     echo "================================================="
