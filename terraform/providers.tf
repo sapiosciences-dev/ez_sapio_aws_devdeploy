@@ -41,6 +41,7 @@ locals {
 # Data provider for cluster auth
 data "aws_eks_cluster_auth" "cluster_auth" {
   name = module.eks.cluster_name
+  depends_on = [module.eks]
 }
 
 # Kubernetes provider

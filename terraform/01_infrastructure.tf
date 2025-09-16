@@ -231,7 +231,7 @@ resource "kubernetes_manifest" "selfsigned_root" {
       selfSigned = {}
     }
   }
-  depends_on = [helm_release.cert_manager]
+  depends_on = [helm_release.cert_manager, module.eks]
 }
 
 # B. Issue a CA certificate (isCA: true) in cert-manager ns
