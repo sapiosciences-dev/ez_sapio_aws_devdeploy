@@ -1,7 +1,7 @@
 # Sapio Platform version to use
 ARG SAPIO_PLATFORM_VERISON="2025.09.09.1949-1146-25_9"
 
-FROM ubuntu:22.04 as addons
+FROM ubuntu:22.04 AS addons
 
 
 RUN apt-get update
@@ -21,8 +21,7 @@ RUN if test -f customizations.jar; then  \
     echo "customizations.jar found. Extracting...";  \
     java -jar customizations.jar; \
     echo "customizations.jar extracted successfully.";  \
-    else echo "customizations.jar not found";  \
-    exit 1;  \
+    else echo "WARNING: customizations.jar not found. Skipping";  \
     fi
 
 RUN mv wars clientplugins;
