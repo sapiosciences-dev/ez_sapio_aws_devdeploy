@@ -31,7 +31,13 @@ if ! command -v docker &> /dev/null; then
     echo "🫵 Docker is not installed. Please install Docker and try again"
     exit 1
 fi
-sudo groupadd docker
+# only if group docker does not exist
+if ! getent group docker > /dev/null 2>&1; then
+    echo "================================================="
+    echo "🚀 Docker group does not exist. Creating docker group."
+    echo "================================================="
+    sudo groupadd docker
+fi
 sudo usermod -aG docker "$USER"
 newgrp docker
 RECEIVED=docker run hello-world
