@@ -19,7 +19,7 @@ RUN java -jar analytics.jar
 RUN java -jar foundations.jar
 RUN if test -f customizations.jar; then  \
     echo "customizations.jar found. Extracting...";  \
-    java -jar customizations.jar "*lib/*" "plugins/*" "wars/*"; \
+    java -jar customizations.jar; \
     echo "customizations.jar extracted successfully.";  \
     else echo "customizations.jar not found";  \
     exit 1;  \
