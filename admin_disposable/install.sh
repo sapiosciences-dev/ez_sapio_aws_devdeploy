@@ -1,4 +1,5 @@
-
+#!/usr/bin/env bash
+set -euo pipefail
 echo "================================================="
 echo "🚀 Installing AWS CLI, Terraform, and Docker"
 echo "================================================="
@@ -23,29 +24,40 @@ if ! command -v aws &> /dev/null; then
     echo "🫵 AWS CLI is not installed. Please install AWS CLI and try again"
     exit 1
 fi
+
 if ! command -v terraform &> /dev/null; then
     echo "🫵 Terraform is not installed. Please install Terraform and try again"
     exit 1
 fi
+
 if ! command -v docker &> /dev/null; then
     echo "🫵 Docker is not installed. Please install Docker and try again"
     exit 1
 fi
 # only if group docker does not exist
-if ! getent group docker > /dev/null 2>&1; then
-    echo "================================================="
-    echo "🚀 Docker group does not exist. Creating docker group."
-    echo "================================================="
-    sudo groupadd docker
+TARGET_USER="${SUDO_USER:-$USER}"
+
+# 1) Ensure docker group exists
+if ! getent group docker >/dev/null 2>&1; then
+  echo "🚀 Creating docker group"
+  sudo groupadd docker
 fi
-sudo usermod -aG docker "$USER"
-newgrp docker
-RECEIVED=$(docker run hello-world)
-if [[ $RECEIVED == *"Hello from Docker!"* ]]; then
-    echo "================================================="
-    echo "✅ Docker is installed and running. Installing user added to docker group."
-    echo "================================================="
+
+# 2) Add the *actual* user to docker group
+echo "👤 Adding $TARGET_USER to docker group"
+sudo usermod -aG docker "$TARGET_USER"
+
+# 3) Ensure Docker is installed & running (adjust if already handled)
+if ! systemctl is-active --quiet docker; then
+  echo "🔧 Starting Docker service"
+  sudo systemctl enable --now docker
+fi
+
+# 4) Test without logging out: run with docker group using 'sg'
+echo "🧪 Testing Docker as $TARGET_USER via 'sg docker'"
+if sudo -u "$TARGET_USER" sg docker -c 'docker run --rm hello-world' | grep -q "Hello from Docker!"; then
+  echo "✅ Docker works. (Group membership will persist next login.)"
 else
-    echo "🫵 Docker is not running. Please start Docker and try again."
-    exit 1
+  echo "❌ Docker test failed. Try logging out/in or check Docker service logs."
+  exit 1
 fi
