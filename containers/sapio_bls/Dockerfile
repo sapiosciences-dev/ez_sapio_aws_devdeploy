@@ -5,7 +5,7 @@ FROM ubuntu:22.04 as addons
 
 
 RUN apt-get update
-RUN apt-get install unzip
+RUN apt-get install unzip openjdk-17-jre-headless -y
 
 RUN mkdir -p /opt/sapiosciences/velox_server/addons/
 
