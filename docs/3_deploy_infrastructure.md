@@ -23,7 +23,7 @@ Set the **analytic_server_docker_image** to the analytic server version correspo
 Set the **sapio_server_license_data** to the base64 encoded license file content of "exemplar.license" that is shipped to you by Sapio. The license file must be entitling the AWS account and NOT the Mac Address. 
 > 💡 TIP
 > 
-> To obtain the base64 encoded content, you can copy the license file to the remote development environment then run command "base64 exemplar.license" to get the encoded content.
+> To obtain the base64 encoded content, you can copy the license file to the remote development environment then run command "base64 exemplar.license -w 0" to get the encoded content.
 
 Scan through all scaling variables to ensure they are set to your desired values.
 

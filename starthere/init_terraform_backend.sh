@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
 # ONLY need to run this once.
 # vars
 REGION=us-east-1

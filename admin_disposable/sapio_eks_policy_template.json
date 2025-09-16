@@ -2,28 +2,16 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "TfStateBucketList",
+      "Sid": "TfS3FullAccess",
       "Effect": "Allow",
-      "Action": ["s3:ListBucket"],
-      "Resource": "arn:aws:s3:::terraform-state-bucket-eks-auto-sapio"
-    },
-    {
-      "Sid": "TfStateBucketObjects",
-      "Effect": "Allow",
-      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-      "Resource": "arn:aws:s3:::terraform-state-bucket-eks-auto-sapio/*"
+      "Action": ["s3:*"],
+      "Resource": "arn:aws:s3:::*"
     },
     {
       "Sid": "TfLockTable",
       "Effect": "Allow",
-      "Action": ["dynamodb:DescribeTable", "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"],
+      "Action": ["dynamodb:*"],
       "Resource": "arn:aws:dynamodb:us-east-1:<<<ACCOUNT_ID>>>:table/terraform-lock"
-    },
-    {
-      "Sid": "TfStateBucketMeta",
-      "Effect": "Allow",
-      "Action": ["s3:GetBucketLocation","s3:ListBucket"],
-      "Resource": "arn:aws:s3:::terraform-state-bucket-eks-auto-sapio"
     },
 
     {
