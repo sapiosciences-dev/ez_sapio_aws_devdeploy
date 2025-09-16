@@ -79,12 +79,6 @@ fi
 
 # Prompt the user for confirmation
 echo -e "\nYour EKS cluster will deploy to AWS account ===> ${AWS_ACCOUNT} <===. Is that what you want?\n"
-echo "**** 👀 You MUST ensure this is NOT a production account and is NOT 👀 ****"
-echo "**** 👀          currently in use for any business purpose          👀 ****"
-echo "****                                                                   ****"
-echo "**** This script and Terraform  will create resources in this account  ****"
-echo "****                                                                   ****"
-echo "****            If you are unsure, then do NOT proceed                 ****"
 printf "Proceed? [y/n]: "
 read -r response
 
