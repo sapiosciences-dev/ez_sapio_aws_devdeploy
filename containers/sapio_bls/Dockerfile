@@ -37,7 +37,7 @@ RUN find . -name "*.war" | while read filename; do unzip -o -d "`basename -s .wa
 RUN rm *.war
 
 
-COPY regeneron-igblast-javaserverplugin.jar /opt/sapiosciences/velox_server/addons/plugins/
+COPY files/systemdevtools.jar /opt/sapiosciences/velox_server/addons/plugins/
 
 
 FROM 659459510985.dkr.ecr.us-east-1.amazonaws.com/sapiosciences/sapio_platform/platform_default:$SAPIO_PLATFORM_VERISON
