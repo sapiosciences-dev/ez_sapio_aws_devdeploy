@@ -19,7 +19,7 @@ fi
 
 docker='docker'
 if ! command -v docker &> /dev/null; then
-    echo "🫵 Docker is not installed. Please install Terraform and try again."
+    echo "🫵 Docker is not installed. Please install Docker and try again."
     exit 1
 fi
 
