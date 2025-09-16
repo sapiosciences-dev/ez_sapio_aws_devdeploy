@@ -61,6 +61,14 @@ aws ecr get-login-password --region us-east-1 | $docker login --username AWS --p
 echo "================================================="
 echo "✅ Logged in to ECR: ${ECR_NAME}"
 echo "================================================="
+# Check if ECR repo exists. If not, create a new ECR repo.
+if ! aws ecr describe-repositories --repository-names "${NAME}" --region us-east-1 &> /dev/null; then
+    echo "🆕 ECR repository ${NAME} does not exist. Creating a new repository."
+    aws ecr create-repository --repository-name "${NAME}" --region us-east-1
+    echo "✅ Created ECR repository: ${NAME}"
+else
+    echo "✅ ECR repository ${NAME} already exists."
+fi
 $docker push "${LATEST_TAG}"
 
 echo "================================================="
