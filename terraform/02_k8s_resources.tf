@@ -81,20 +81,6 @@ resource "kubernetes_persistent_volume_claim_v1" "ebs_pvc" {
   # See https://github.com/setheliot/eks_auto_mode/blob/main/docs/separate_configs.md
   depends_on = [module.eks]
 }
-
-resource "kubernetes_secret_v1" "es_http_tls" {
-  metadata {
-    name      = "es-http-tls"
-    namespace = local.es_namespace
-  }
-  type = "Opaque"
-  data = {
-    "tls.crt" = file("${path.module}/certs/es-http.crt") # server cert
-    "tls.key" = file("${path.module}/certs/es-http.key") # server key
-    "ca.crt"  = file("${path.module}/certs/ca.crt")      # issuing CA
-  }
-}
-
 # This will create the PVC, which will wait until a pod needs it, and then create a PersistentVolume
 resource "helm_release" "cluster_autoscaler" {
   name       = "cluster-autoscaler"

@@ -207,3 +207,65 @@ resource "aws_vpc_endpoint" "private_link_ec2messages" {
   }
 }
 
+## SELF SIGNING CERTIFICATE MANAGEMENT WITHIN THE CLUSTER
+resource "helm_release" "cert_manager" {
+  name             = "cert-manager"
+  repository       = "https://charts.jetstack.io"
+  chart            = "cert-manager"
+  version          = "v1.14.4"
+  namespace        = "cert-manager"
+  create_namespace = true
+
+  set {
+    name  = "installCRDs"
+    value = "true"
+  }
+}
+
+# A. Self-signed ClusterIssuer (bootstrap)
+resource "kubernetes_manifest" "selfsigned_root" {
+  manifest = {
+    apiVersion = "cert-manager.io/v1"
+    kind       = "ClusterIssuer"
+    metadata   = { name = "selfsigned-root" }
+    spec = {
+      selfSigned = {}
+    }
+  }
+  depends_on = [helm_release.cert_manager]
+}
+
+# B. Issue a CA certificate (isCA: true) in cert-manager ns
+resource "kubernetes_manifest" "es_root_ca_cert" {
+  manifest = {
+    apiVersion = "cert-manager.io/v1"
+    kind       = "Certificate"
+    metadata = {
+      name      = "es-root-ca"
+      namespace = "cert-manager"
+    }
+    spec = {
+      isCA       = true
+      commonName = "es-root-ca"
+      secretName = "es-root-ca"     # will contain tls.crt (CA) and tls.key
+      privateKey = { algorithm = "RSA", size = 2048 }
+      issuerRef  = { name = "selfsigned-root", kind = "ClusterIssuer" }
+      duration    = "87600h"   # 10y
+      renewBefore = "720h"     # 30d
+    }
+  }
+  depends_on = [kubernetes_manifest.selfsigned_root]
+}
+
+# C. ClusterIssuer backed by that CA (cluster-wide signer)
+resource "kubernetes_manifest" "es_ca_clusterissuer" {
+  manifest = {
+    apiVersion = "cert-manager.io/v1"
+    kind       = "ClusterIssuer"
+    metadata   = { name = "es-ca-issuer" }
+    spec = {
+      ca = { secretName = "es-root-ca" }  # secret must live in cert-manager namespace
+    }
+  }
+  depends_on = [kubernetes_manifest.es_root_ca_cert]
+}

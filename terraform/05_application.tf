@@ -337,7 +337,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           }
           env {
             name  = "ES_CA_CERT"
-            value = "/etc/es-ca/ca.crt"
+            value = "/certificates/es_ca/ca.crt"
           }
           # Add environment variable using Kubernetes Downward API to get node name
           env {
@@ -461,6 +461,10 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
             name  = "SapioNativeExecTrustStorePassword"
             value = local.analytic_server_keystore_password
           }
+          env {
+            name  = "USE_SYSTEM_CA_CERTS"
+            value = "1"
+          }
           # Mount the PVC as a volume in the container
           volume_mount {
             name       = "ebs-k8s-attached-storage"
@@ -468,16 +472,22 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           }
           #volume
           volume_mount {
-            name       = "es-ca"
-            mount_path = "/etc/es-ca"
+            name       = "internal-ca"
+            mount_path = "/certificates"
             read_only  = true
           }
         }
         #container
 
         volume {
-          name = "es-ca"
-          secret { secret_name = kubernetes_secret_v1.es_http_tls.metadata[0].name }
+          name = "internal-ca"
+          secret {
+            secret_name = "es-http-tls"   # the Certificate's secret
+            items {
+              key  = "ca.crt"
+              path = "es-ca.crt"          # must end in .crt
+            }
+          }
         }
         # Define the volume using the PVC
         volume {

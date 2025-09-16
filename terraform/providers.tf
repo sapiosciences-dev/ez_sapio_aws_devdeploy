@@ -9,6 +9,10 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = ">= 2.35"
     }
+    helm = {
+      source  = "hashicorp/helm"
+      version = ">= 3.19.0"
+    }
   }
 }
 provider "aws" {
