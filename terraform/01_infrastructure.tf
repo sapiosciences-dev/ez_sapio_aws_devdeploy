@@ -216,10 +216,9 @@ resource "helm_release" "cert_manager" {
   namespace        = "cert-manager"
   create_namespace = true
 
-  set {
-    name  = "installCRDs"
-    value = "true"
-  }
+  set = [
+    { name = "installCRDs", value = "true"}  # Required to install the CRDs
+  ]
 }
 
 # A. Self-signed ClusterIssuer (bootstrap)
