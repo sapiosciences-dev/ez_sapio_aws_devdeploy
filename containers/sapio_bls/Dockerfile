@@ -12,15 +12,7 @@ RUN mkdir -p /opt/sapiosciences/velox_server/addons/
 
 COPY files/foundations.jar /opt/sapiosciences/velox_server/addons/foundations.jar
 COPY files/analytics.jar /opt/sapiosciences/velox_server/addons/analytics.jar
-# Try to mount customizations.jar from the build context; skip if missing
-RUN --mount=type=bind,source=customizations.jar,target=/tmp/customizations.jar,required=false \
-    if [ -f /tmp/customizations.jar ]; then \
-      install -D -m 0644 /tmp/customizations.jar \
-        /opt/sapiosciences/velox_server/addons/customizations.jar; \
-      echo "Added customizations.jar"; \
-    else \
-      echo "No customizations.jar provided; skipping."; \
-    fi
+COPY customization?.jar /opt/sapiosciences/velox_server/addons/customizations.jar
 
 WORKDIR /opt/sapiosciences/velox_server/addons/
 RUN java -jar analytics.jar "*lib/*" "plugins/*" "wars/*"
