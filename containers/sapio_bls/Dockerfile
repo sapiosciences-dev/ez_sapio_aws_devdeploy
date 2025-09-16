@@ -5,7 +5,7 @@ FROM ubuntu:22.04 AS addons
 
 
 RUN apt-get update
-RUN apt-get install unzip openjdk-17-jre-headless -y
+RUN apt-get install unzip
 
 RUN mkdir -p /opt/sapiosciences/velox_server/addons/
 
@@ -15,18 +15,27 @@ COPY files/analytics.jar /opt/sapiosciences/velox_server/addons/analytics.jar
 COPY customization?.jar /opt/sapiosciences/velox_server/addons/customizations.jar
 
 WORKDIR /opt/sapiosciences/velox_server/addons/
-RUN java -jar analytics.jar
-RUN java -jar foundations.jar
+RUN unzip -o analytics.jar "*lib/*" "plugins/*" "wars/*"
+RUN unzip -o foundations.jar "*lib/*" "plugins/*" "wars/*"
 RUN if test -f customizations.jar; then  \
     echo "customizations.jar found. Extracting...";  \
-    java -jar customizations.jar; \
+    RUN unzip -o customizations.jar "*lib/*" "plugins/*" "wars/*"; \
     echo "customizations.jar extracted successfully.";  \
-    else echo "WARNING: customizations.jar not found. Skipping";  \
+    else echo "customizations.jar not found";  \
     fi
+
+RUN mv wars clientplugins;
+RUN mv applib sharedlib
 
 RUN chown -R 1000:1000 /opt/sapiosciences/velox_server/addons
 
 RUN rm /opt/sapiosciences/velox_server/addons/*.jar
+
+WORKDIR /opt/sapiosciences/velox_server/addons/clientplugins
+RUN find . -name "*.war" | while read filename; do unzip -o -d "`basename -s .war "$filename"`" "$filename"; done;
+RUN rm *.war
+
+
 COPY files/systemdevtools.jar /opt/sapiosciences/velox_server/addons/plugins/
 
 
