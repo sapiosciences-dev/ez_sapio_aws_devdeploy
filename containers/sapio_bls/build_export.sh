@@ -1,5 +1,5 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
+set -euo pipefail
 echo "📋 Sapio EZ EKS Application Deployment Prebuild Checklist:"
 echo "👉 1. Ensure Dockerfile is present in the current directory."
 echo "👉 2. Verify AWS CLI is configured with appropriate permissions."
@@ -20,6 +20,16 @@ fi
 docker='sudo docker'
 if ! command -v docker &> /dev/null; then
     echo "🫵 Docker is not installed. Please install Docker and try again."
+    exit 1
+fi
+
+SAPIO_ECR_NAME=659459510985.dkr.ecr.us-east-1.amazonaws.com
+echo "================================================="
+echo "🔐 Verifying AWS Account Entitlement with Sapio"
+echo "================================================="
+aws ecr get-login-password --region us-east-1 | $docker login --username AWS --password-stdin "${SAPIO_ECR_NAME}"
+if [ $? -ne 0 ]; then
+    echo "🫵 AWS Account is not entitled to access Sapio ECR. Please contact Sapio support."
     exit 1
 fi
 
