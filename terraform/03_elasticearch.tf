@@ -47,89 +47,35 @@ resource "helm_release" "elasticsearch" {
   namespace        = local.es_namespace
   create_namespace = true
 
-  # Basic production-ish values (3 masters that are also data+ingest)
-  set {
-    name  = "replicas"
-    value = var.es_num_desired_masters
-  }
-  set {
-    name  = "minimumMasterNodes"
-    value = var.es_num_min_masters
-  }
-  set {
-    name  = "esJavaOpts"
-    value = "-Xms1g -Xmx1g"
-  }
-  set {
-    name  = "resources.requests.cpu"
-    value = var.es_cpu_request
-  }
-  set {
-    name  = "resources.requests.memory"
-    value = var.es_memory_request
-  }
-  set {
-    name  = "resources.limits.cpu"
-    value = var.es_cpu_limit
-  }
-  set {
-    name  = "resources.limits.memory"
-    value = var.es_memory_limit
-  }
+  set = [
+    { name = "replicas",                                  value = tostring(var.es_num_desired_masters) },
+    { name = "minimumMasterNodes",                        value = tostring(var.es_num_min_masters) },
+    { name = "esJavaOpts",                                value = "-Xms1g -Xmx1g" },
 
-  # Persistent storage
-  set {
-    name  = "volumeClaimTemplate.storageClassName"
-    value = "gp3"
-  }
-  set {
-    name  = "volumeClaimTemplate.resources.requests.storage"
-    value = var.es_storage_size
-  }
+    { name = "resources.requests.cpu",                    value = var.es_cpu_request },
+    { name = "resources.requests.memory",                 value = var.es_memory_request },
+    { name = "resources.limits.cpu",                      value = var.es_cpu_limit },
+    { name = "resources.limits.memory",                   value = var.es_memory_limit },
 
-  # Avoid node sysctl tweak; switch later if you set vm.max_map_count
-  set {
-    name  = "esConfig.elasticsearch\\.yml.node\\.store\\.allow_mmap"
-    value = "false"
-  }
+    # Persistent storage
+    { name = "volumeClaimTemplate.storageClassName",      value = "gp3" },
+    { name = "volumeClaimTemplate.resources.requests.storage", value = var.es_storage_size },
 
-  # Use HTTPS
-  set {
-    name = "protocol"
-    value = "https"
-  }
-  set {
-    name = "secretMounts[0].name"
-    value = "http-certs"
-  }
-  set {
-    name  = "secretMounts[0].secretName"
-    value = "es-http-tls"   # <- cert-manager's Certificate.spec.secretName
-  }
-  set {
-    name = "secretMounts[0].path"
-    value = "/usr/share/elasticsearch/config/certs"
-  }
-  set {
-    name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.enabled"
-    value = "true"
-  }
-  set {
-    name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.enabled"
-    value = "true"
-  }
-  set {
-    name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.certificate"
-    value = "/usr/share/elasticsearch/config/certs/tls.crt"
-  }
-  set {
-    name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.key"
-    value = "/usr/share/elasticsearch/config/certs/tls.key"
-  }
-  set {
-    name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.certificate_authorities"
-    value = "/usr/share/elasticsearch/config/certs/ca.crt"
-  }
+    # Avoid mmap unless you've set vm.max_map_count on nodes
+    { name = "esConfig.elasticsearch\\.yml.node\\.store\\.allow_mmap", value = "false" },
+
+    # HTTPS + mount certs from the secret created by cert-manager
+    { name = "protocol",                                  value = "https" },
+    { name = "secretMounts[0].name",                      value = "http-certs" },
+    { name = "secretMounts[0].secretName",                value = "es-http-tls" },
+    { name = "secretMounts[0].path",                      value = "/usr/share/elasticsearch/config/certs" },
+
+    { name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.enabled",                    value = "true" },
+    { name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.enabled",       value = "true" },
+    { name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.certificate",   value = "/usr/share/elasticsearch/config/certs/tls.crt" },
+    { name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.key",           value = "/usr/share/elasticsearch/config/certs/tls.key" },
+    { name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.certificate_authorities\\[0\\]", value = "/usr/share/elasticsearch/config/certs/ca.crt" }
+  ]
 
 
   depends_on = [kubernetes_manifest.es_http_cert, module.eks]

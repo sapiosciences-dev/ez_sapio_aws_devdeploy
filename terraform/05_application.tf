@@ -357,7 +357,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           # JDBC root db url, user, and password.
           env {
             name  = "ROOT_DB_URL"
-            value = local.jdbc_url_root + local.jdbc_url_suffix
+            value = "${local.jdbc_url_root}${local.jdbc_url_suffix}"
           }
           env {
             name  = "ROOT_DB_USER"
@@ -374,7 +374,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           }
           env {
             name  = "PORTAL_DB_URL"
-            value = local.jdbc_url_root + "sapio_portal" + local.jdbc_url_suffix
+            value = "${local.jdbc_url_root}sapio_portal${local.jdbc_url_suffix}"
           }
           env {
             name  = "PORTAL_DB_USER"
@@ -399,7 +399,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           }
           env {
             name  = "APP_1_DB_URL"
-            value = local.jdbc_url_root + "sapio_app1" + local.jdbc_url_suffix
+            value = "${local.jdbc_url_root}sapio_app1${local.jdbc_url_suffix}"
           }
           env {
             name  = "APP_1_DB_USER"

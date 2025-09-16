@@ -42,13 +42,19 @@ output "sapio_rds_replica_endpoint" {
 
 # --- Outputs for Sapio BLS ---
 locals {
-  bls_lb_host = coalesce(
-    try(kubernetes_service_v1.sapio_bls_nlb.status[0].load_balancer[0].ingress[0].hostname, ""),
-    try(kubernetes_service_v1.sapio_bls_nlb.status[0].load_balancer[0].ingress[0].ip, ""),
-    ""
+  bls_lb_hostname = try(
+    kubernetes_service_v1.sapio_bls_nlb.status[0].load_balancer[0].ingress[0].hostname,
+    null
   )
+  bls_lb_ip = try(
+    kubernetes_service_v1.sapio_bls_nlb.status[0].load_balancer[0].ingress[0].ip,
+    null
+  )
+
+  # Prefer hostname, then IP, else empty string
+  bls_lb_host = coalesce(local.bls_lb_hostname, local.bls_lb_ip, "")
 }
 
 output "sapio_bls_external_url" {
-  value = length(local.bls_lb_host) > 0 ? bls_lb_host : "Sapio BLS external endpoint is provisioning..."
+  value = length(local.bls_lb_host) > 0 ? local.bls_lb_host : "Sapio BLS external endpoint is provisioning..."
 }
