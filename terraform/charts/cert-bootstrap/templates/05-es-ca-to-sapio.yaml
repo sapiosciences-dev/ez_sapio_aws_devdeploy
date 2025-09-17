@@ -1,3 +1,5 @@
+{{- $src := lookup "v1" "Secret" "cert-manager" "es-root-ca" -}}
+{{- if $src }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -5,6 +7,9 @@ metadata:
   namespace: {{ .Values.sapioNamespace | quote }}
 data:
   ca.crt: |
-    {{- $src := lookup "v1" "Secret" "cert-manager" "es-root-ca" -}}
-    {{- if not $src }}{{ fail "Secret cert-manager/es-root-ca not found" }}{{ end -}}
-    {{- index $src.data "tls.crt" | b64dec -}}   # CA cert from the CA secret
+    {{ index $src.data "tls.crt" | b64dec }}
+{{- else }}
+{{- if and (not .Release.IsInstall) (.Values.failIfMissingCA | default false) }}
+{{ fail "Secret cert-manager/es-root-ca not found" }}
+{{- end }}
+{{- end }}
