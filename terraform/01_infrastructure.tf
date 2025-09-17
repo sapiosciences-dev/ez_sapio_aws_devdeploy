@@ -208,6 +208,7 @@ resource "aws_vpc_endpoint" "private_link_ec2messages" {
 }
 
 ## SELF SIGNING CERTIFICATE MANAGEMENT WITHIN THE CLUSTER
+# cert-manager (unchanged)
 resource "helm_release" "cert_manager" {
   name             = "cert-manager"
   repository       = "https://charts.jetstack.io"
@@ -215,56 +216,34 @@ resource "helm_release" "cert_manager" {
   version          = "v1.14.4"
   namespace        = "cert-manager"
   create_namespace = true
+  wait             = true
+  set = [{ name = "installCRDs", value = "true" }]
+  depends_on = [module.eks]
+}
+
+# install issuers + ES HTTP Certificate via local chart
+resource "helm_release" "cert_bootstrap" {
+  name       = "cert-bootstrap"
+  chart      = "${path.module}/charts/cert-bootstrap"
+  namespace  = "cert-manager"
+  wait       = true
 
   set = [
-    { name = "installCRDs", value = "true"}  # Required to install the CRDs
+    { name = "esNamespace",      value = local.es_namespace },
+    { name = "esHttpSecretName", value = "es-http-tls" },
+    # elastic/elasticsearch chart’s HTTP Service is typically "<release>-master"
+    { name = "esServiceName",    value = "${local.es_release_name}-master" }
   ]
-}
 
-# A. Self-signed ClusterIssuer (bootstrap)
-resource "kubernetes_manifest" "selfsigned_root" {
-  manifest = {
-    apiVersion = "cert-manager.io/v1"
-    kind       = "ClusterIssuer"
-    metadata   = { name = "selfsigned-root" }
-    spec = {
-      selfSigned = {}
-    }
-  }
-  depends_on = [helm_release.cert_manager, module.eks]
+  depends_on = [helm_release.cert_manager]
 }
-
-# B. Issue a CA certificate (isCA: true) in cert-manager ns
-resource "kubernetes_manifest" "es_root_ca_cert" {
-  manifest = {
-    apiVersion = "cert-manager.io/v1"
-    kind       = "Certificate"
-    metadata = {
-      name      = "es-root-ca"
-      namespace = "cert-manager"
-    }
-    spec = {
-      isCA       = true
-      commonName = "es-root-ca"
-      secretName = "es-root-ca"     # will contain tls.crt (CA) and tls.key
-      privateKey = { algorithm = "RSA", size = 2048 }
-      issuerRef  = { name = "selfsigned-root", kind = "ClusterIssuer" }
-      duration    = "87600h"   # 10y
-      renewBefore = "720h"     # 30d
-    }
+# actively wait until the Certificate is Ready and Secret exists
+resource "null_resource" "wait_es_http_tls" {
+  provisioner "local-exec" {
+    command = <<EOT
+kubectl wait --for=condition=Ready certificate/es-http-cert -n ${local.es_namespace} --timeout=300s && \
+kubectl get secret es-http-tls -n ${local.es_namespace} -o jsonpath='{.data.tls\.crt}' | grep -q .
+EOT
   }
-  depends_on = [kubernetes_manifest.selfsigned_root]
-}
-
-# C. ClusterIssuer backed by that CA (cluster-wide signer)
-resource "kubernetes_manifest" "es_ca_clusterissuer" {
-  manifest = {
-    apiVersion = "cert-manager.io/v1"
-    kind       = "ClusterIssuer"
-    metadata   = { name = "es-ca-issuer" }
-    spec = {
-      ca = { secretName = "es-root-ca" }  # secret must live in cert-manager namespace
-    }
-  }
-  depends_on = [kubernetes_manifest.es_root_ca_cert]
+  depends_on = [helm_release.cert_bootstrap]
 }

@@ -1,0 +1,13 @@
+# Namespace where Elasticsearch runs
+esNamespace: "elasticsearch"
+sapioNamespace: "sapio"
+
+# Name of the Secret that Elasticsearch will mount
+esHttpSecretName: "es-http-tls"
+
+# The Kubernetes Service name backing ES HTTP (often "<release>-master")
+# Set from Terraform to keep charts decoupled.
+esServiceName: "elasticsearch-master"
+
+# Optionally allow explicit DNS names override; if empty we'll derive from service + ns
+esHttpDnsNames: []

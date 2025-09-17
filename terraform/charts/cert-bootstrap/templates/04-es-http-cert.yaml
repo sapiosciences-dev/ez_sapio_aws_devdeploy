@@ -1,0 +1,30 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: es-http-cert
+  namespace: {{ .Values.esNamespace | quote }}
+spec:
+  # 1 year is a sane default for leaves; adjust if you like
+  duration: 8760h        # 1y
+  renewBefore: 720h      # 30d
+  secretName: {{ .Values.esHttpSecretName | quote }}
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  usages:
+    - server auth
+  issuerRef:
+    kind: ClusterIssuer
+    name: es-ca-issuer
+
+  # DNS names must match the service DNS that ES clients hit
+  dnsNames:
+  {{- if .Values.esHttpDnsNames }}
+  {{- range .Values.esHttpDnsNames }}
+    - {{ . | quote }}
+  {{- end }}
+  {{- else }}
+    - {{ printf "%s.%s.svc" .Values.esServiceName .Values.esNamespace | quote }}
+    - {{ printf "%s.%s.svc.cluster.local" .Values.esServiceName .Values.esNamespace | quote }}
+    - {{ .Values.esServiceName | quote }}
+  {{- end }}

@@ -1,0 +1,7 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: es-ca-issuer
+spec:
+  ca:
+    secretName: es-root-ca

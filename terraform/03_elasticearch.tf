@@ -16,30 +16,6 @@ locals {
   es_index_pattern         = "*"
 }
 
-resource "kubernetes_manifest" "es_http_cert" {
-  manifest = {
-    apiVersion = "cert-manager.io/v1"
-    kind       = "Certificate"
-    metadata = {
-      name      = "es-http-cert"
-      namespace = local.es_namespace
-    }
-    spec = {
-      secretName  = "es-http-tls"           # <— same secret name your app already uses
-      duration    = "2160h"                 # 90d
-      renewBefore = "360h"                  # 15d
-      privateKey  = { algorithm = "RSA", size = 2048 }
-      usages      = ["digital signature","key encipherment","server auth"]
-      issuerRef   = { name = "es-ca-issuer", kind = "ClusterIssuer" }
-      dnsNames = [
-        "elasticsearch-master.${local.es_namespace}.svc",
-        "elasticsearch-master.${local.es_namespace}.svc.cluster.local"
-      ]
-    }
-  }
-  depends_on = [kubernetes_manifest.es_ca_clusterissuer]
-}
-
 resource "helm_release" "elasticsearch" {
   name             = local.es_release_name
   repository       = "https://helm.elastic.co"
@@ -78,7 +54,7 @@ resource "helm_release" "elasticsearch" {
   ]
 
 
-  depends_on = [kubernetes_manifest.es_http_cert, module.eks]
+  depends_on = [null_resource.wait_es_http_tls, module.eks]
 }
 
 # Secret with desired app password (namespace "elasticsearch" so Job can read it)

@@ -25,6 +25,7 @@ locals {
   analytic_server_keystore_password = "123456"
   analytic_server_keystore_base64 = "MIIKFAIBAzCCCb4GCSqGSIb3DQEHAaCCCa8EggmrMIIJpzCCBa4GCSqGSIb3DQEHAaCCBZ8EggWbMIIFlzCCBZMGCyqGSIb3DQEMCgECoIIFQDCCBTwwZgYJKoZIhvcNAQUNMFkwOAYJKoZIhvcNAQUMMCsEFIQfCQ5TegpDnwocrqWOI9ZrYTaKAgInEAIBIDAMBggqhkiG9w0CCQUAMB0GCWCGSAFlAwQBKgQQ"
 
+  sapio_ns = "sapio"
   sapio_bls_app_name = "${local.prefix_env}-sapio-app"
   jdbc_url_root = "jdbc:mysql://${aws_db_instance.sapio_mysql.address}:${aws_db_instance.sapio_mysql.port}/"
   jdbc_url_suffix = "?trustServerCertificate=true&allowPublicKeyRetrieval=true"
@@ -227,7 +228,7 @@ resource "random_password" "sapio_mysql_portal" {
 resource "kubernetes_secret_v1" "mysql_portal_creds" {
   metadata {
     name      = "mysql-portal-user"
-    namespace = "sapio" # only sapio app namespace pods can read this secret.
+    namespace = sapio_ns # only sapio app namespace pods can read this secret.
   }
   data = {
     username = local.sql_root_user
@@ -243,7 +244,7 @@ resource "random_password" "sapio_mysql_app1" {
 resource "kubernetes_secret_v1" "mysql_app1_creds" {
   metadata {
     name      = "mysql-app1-user"
-    namespace = "sapio" # only sapio app namespace pods can read this secret.
+    namespace = sapio_ns # only sapio app namespace pods can read this secret.
   }
   data = {
     username = local.sql_root_user
@@ -255,7 +256,7 @@ resource "kubernetes_secret_v1" "mysql_app1_creds" {
 resource "kubernetes_deployment_v1" "sapio_app_deployment" {
   metadata {
     name = "${local.sapio_bls_app_name}-deployment"
-    namespace = "sapio"
+    namespace = sapio_ns
     labels = {
       app = local.sapio_bls_app_name
     }
@@ -511,7 +512,8 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
 
   # Give time for the cluster to complete (controllers, RBAC and IAM propagation)
   # See https://github.com/setheliot/eks_auto_mode/blob/main/docs/separate_configs.md
-  depends_on = [module.eks, helm_release.cluster_autoscaler, aws_db_instance.sapio_mysql, aws_db_instance.sapio_mysql_replica]
+  depends_on = [module.eks, helm_release.cluster_autoscaler, aws_db_instance.sapio_mysql, aws_db_instance.sapio_mysql_replica,
+    helm_release.elasticsearch, helm_release.cert_bootstrap]
 }
 
 # There is no LB support. But replica = 1 means there is no replica. This is the easiest way to export the app.
@@ -519,7 +521,7 @@ resource "kubernetes_service_v1" "sapio_bls_nlb" {
   wait_for_load_balancer = true
   metadata {
     name      = "${local.sapio_bls_app_name}-ext"
-    namespace = "sapio"
+    namespace = sapio_ns
     labels    = { app = local.sapio_bls_app_name }
     annotations = {
       # Tell AWS LB Controller to create an NLB and target pod IPs directly
