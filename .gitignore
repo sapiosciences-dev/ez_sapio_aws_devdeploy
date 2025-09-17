@@ -4,6 +4,7 @@ containers/sapio_bls/files/**
 .terraform/
 
 # .tfstate files
+.idea
 *.tfstate
 *.tfstate.*
 
