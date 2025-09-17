@@ -28,7 +28,7 @@ module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "~> 5.0"
 
-  name            = "${local.prefix_env}-vpc"
+  name            = "${local.prefix_env}-sapioeks-vpc"
   cidr            = "10.0.0.0/16"
   azs             = slice(data.aws_availability_zones.available.names, 0, local.max_azs)
   private_subnets = slice(["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"], 0, local.max_azs)
