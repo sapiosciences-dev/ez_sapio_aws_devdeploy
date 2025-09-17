@@ -228,7 +228,7 @@ resource "random_password" "sapio_mysql_portal" {
 resource "kubernetes_secret_v1" "mysql_portal_creds" {
   metadata {
     name      = "mysql-portal-user"
-    namespace = sapio_ns # only sapio app namespace pods can read this secret.
+    namespace = local.sapio_ns # only sapio app namespace pods can read this secret.
   }
   data = {
     username = local.sql_root_user
@@ -244,7 +244,7 @@ resource "random_password" "sapio_mysql_app1" {
 resource "kubernetes_secret_v1" "mysql_app1_creds" {
   metadata {
     name      = "mysql-app1-user"
-    namespace = sapio_ns # only sapio app namespace pods can read this secret.
+    namespace = local.sapio_ns # only sapio app namespace pods can read this secret.
   }
   data = {
     username = local.sql_root_user
@@ -256,7 +256,7 @@ resource "kubernetes_secret_v1" "mysql_app1_creds" {
 resource "kubernetes_deployment_v1" "sapio_app_deployment" {
   metadata {
     name = "${local.sapio_bls_app_name}-deployment"
-    namespace = sapio_ns
+    namespace = local.sapio_ns
     labels = {
       app = local.sapio_bls_app_name
     }
@@ -521,7 +521,7 @@ resource "kubernetes_service_v1" "sapio_bls_nlb" {
   wait_for_load_balancer = true
   metadata {
     name      = "${local.sapio_bls_app_name}-ext"
-    namespace = sapio_ns
+    namespace = local.sapio_ns
     labels    = { app = local.sapio_bls_app_name }
     annotations = {
       # Tell AWS LB Controller to create an NLB and target pod IPs directly
