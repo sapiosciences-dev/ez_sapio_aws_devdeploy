@@ -148,7 +148,8 @@
       "Sid": "DescribesAndSts",
       "Effect": "Allow",
       "Action": [
-        "ec2:Describe*","eks:Describe*","rds:Describe*","ecr:Describe*","iam:GetRole","iam:ListAttachedRolePolicies","iam:GetOpenIDConnectProvider",
+        "ec2:Describe*","eks:Describe*","rds:Describe*","ecr:Describe*","iam:GetRole",
+        "iam:ListAttachedRolePolicies","iam:GetOpenIDConnectProvider", "iam:ListRolePolicies",
         "sts:GetCallerIdentity"
       ],
       "Resource": "*"
