@@ -101,7 +101,7 @@ resource "aws_db_parameter_group" "sapio_mysql8" {
   # innodb_buffer_pool_size to 384M
   parameter {
     name         = "innodb_buffer_pool_size"
-    value        = "384M"
+    value        = "402653184"
     apply_method = "immediate"  # dynamic; can be changed on the fly
   }
   # range_optimizer_max_mem_size = 33554432

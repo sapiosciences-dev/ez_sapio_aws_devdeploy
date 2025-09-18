@@ -35,7 +35,7 @@
       "Sid": "IamManagedPoliciesCrud",
       "Effect": "Allow",
       "Action": [
-        "iam:CreatePolicy","iam:DeletePolicy",
+        "iam:CreatePolicy","iam:DeletePolicy", "iam:TagPolicy",
         "iam:CreatePolicyVersion","iam:DeletePolicyVersion","iam:ListPolicyVersions"
       ],
       "Resource": "arn:aws:iam::<<<ACCOUNT_ID>>>:policy/*"
@@ -130,6 +130,7 @@
       "Effect": "Allow",
       "Action": [
         "kms:DescribeKey", "kms:CreateGrant", "kms:Decrypt", "kms:GenerateDataKey",
+        "kms:TagResource",
         "secretsmanager:CreateSecret", "secretsmanager:TagResource"
       ],
       "Resource": "*"
@@ -139,7 +140,8 @@
       "Sid": "CwLogsBasics",
       "Effect": "Allow",
       "Action": [
-        "logs:CreateLogGroup","logs:DescribeLogGroups","logs:PutRetentionPolicy"
+        "logs:CreateLogGroup","logs:DescribeLogGroups","logs:PutRetentionPolicy",
+        "logs:TagResource"
       ],
       "Resource": "*"
     },
