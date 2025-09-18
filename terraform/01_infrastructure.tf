@@ -80,7 +80,7 @@ module "eks" {
   # This replaces the more complex eks_managed_node_groups block
   cluster_compute_config = {
     enabled    = true
-    node_pools = ["memory-optimized"]
+    node_pools = ["general-purpose"]
   }
 
   # Cluster access entry
