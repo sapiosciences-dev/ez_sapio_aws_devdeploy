@@ -11,7 +11,7 @@ sapio_server_license_data = "" # REPLACE_ME Base64 of file. If not present, lice
 env_name            = "yourusername_dev" # each developer user should have its own env, unless you are playing with a shared env.
 app1_name           = "sapio_limsandeln" # [Account]_[App] in your license file for app 1.
 aws_region          = "us-east-1"
-eks_cluster_version = "1.32"
+eks_cluster_version = "1.33"
 
 # Hardware Spec Under Environment.
 ## Elasticsearch Specs

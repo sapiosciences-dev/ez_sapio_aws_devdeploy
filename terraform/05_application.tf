@@ -150,6 +150,7 @@ resource "kubernetes_service_v1" "analytic_server_svc" {
       protocol    = "TCP"
     }
   }
+    depends_on = [kubernetes_deployment_v1.analytic_server_deployment]
 }
 
 ################################
@@ -212,7 +213,7 @@ resource "kubernetes_horizontal_pod_autoscaler_v2" "analytic_server_hpa" {
       }
     }
   }
-  depends_on = [helm_release.cluster_autoscaler]
+  depends_on = [helm_release.cluster_autoscaler, kubernetes_deployment_v1.analytic_server_deployment]
 }
 
 ###########################
@@ -571,4 +572,5 @@ resource "kubernetes_service_v1" "sapio_bls_nlb" {
       protocol = "TCP"
     }
   }
+  depends_on = [kubernetes_deployment_v1.sapio_app_deployment]
 }
