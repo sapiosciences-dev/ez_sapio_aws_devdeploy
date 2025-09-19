@@ -214,6 +214,7 @@ locals{
   analytic_server_ns = "sapio-analytic-server"
   sapio_ns = "sapio"
   es_namespace             = "elasticsearch"
+  cert_manager_ns         = "cert-manager"
 }
 resource "kubernetes_namespace" "sapio_analytic_server" {
   metadata {
@@ -235,13 +236,12 @@ resource "kubernetes_namespace" "elasticsearch" {
 }
 
 ## SELF SIGNING CERTIFICATE MANAGEMENT WITHIN THE CLUSTER
-# cert-manager (unchanged)
 resource "helm_release" "cert_manager" {
   name             = "cert-manager"
   repository       = "https://charts.jetstack.io"
   chart            = "cert-manager"
   version          = "v1.14.4"
-  namespace        = "cert-manager"
+  namespace        = local.cert_manager_ns
   create_namespace = true
   wait             = true
   set = [{ name = "installCRDs", value = "true" }]
@@ -253,7 +253,7 @@ resource "helm_release" "cert_manager" {
 resource "helm_release" "cert_bootstrap" {
   name       = "cert-bootstrap"
   chart      = "${path.module}/charts/cert-bootstrap"
-  namespace  = "cert-manager"
+  namespace  = local.cert_manager_ns
   wait       = true
 
   set = [
