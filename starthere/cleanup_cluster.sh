@@ -107,6 +107,9 @@ terraform destroy \
     -target=helm_release.elasticsearch \
     -target=aws_db_instance.sapio_mysql_replica \
     -target=aws_db_instance.sapio_mysql \
+    -target=kubernetes_service_v1.sapio_bls_nlb \
+    -target=kubernetes_horizontal_pod_autoscaler_v2.sapio_app_hpa \
+    -target=kubernetes_service_v1.analytic_server_svc \
     -var-file=$TFVARS_FILE
 
 echo "✅ kubernetes_deployment_v1 deleted"
