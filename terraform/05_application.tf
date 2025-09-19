@@ -538,25 +538,25 @@ resource "kubernetes_service_v1" "sapio_bls_nlb" {
     port {
       name        = "https"
       port        = 443          # NLB listener port
-      target_port = "https"      # must match your container port name (443)
+      target_port = 443
       protocol    = "TCP"
     }
     port {
       name        = "rmi"
       port        = 1099
-      target_port = "rmi"
+      target_port = 1099
       protocol    = "TCP"
     }
     port {
       name        = "debug"
       port        = 5005
-      target_port = "debug"
+      target_port = 5005
       protocol    = "TCP"
     }
     port {
       name        = "healthcheck"
       port        = 8088
-      target_port = "healthcheck"
+      target_port = 8088
       protocol    = "TCP"
     }
     port {
