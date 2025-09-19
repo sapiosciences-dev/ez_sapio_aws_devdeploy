@@ -239,7 +239,7 @@ echo "🚀 Running Terraform apply..."
 LOG_GROUP="/aws/eks/${ENV_NAME}/cluster"
 ADDR="module.eks.aws_cloudwatch_log_group.this[0]"
 # Try to adopt if it already exists; ignore failure if it doesn't.
-terraform import -var-file="$TFVARS_FILE" "$ADDR" "$LOG_GROUP" || echo "No existing log group 'aws_cloudwatch_log_group' to import"
+terraform -var-file="$TFVARS_FILE" import "$ADDR" "$LOG_GROUP" || echo "No existing log group 'aws_cloudwatch_log_group' to import"
 terraform apply -auto-approve -var-file="$TFVARS_FILE"
 
 #####
