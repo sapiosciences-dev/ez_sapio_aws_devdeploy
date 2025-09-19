@@ -16,7 +16,7 @@ terraform {
   }
   # There is a deployment bug with more recent versions of Terraform
   # See: https://github.com/hashicorp/terraform-provider-kubernetes/issues/2779
-  required_version = "1.11.4"
+  required_version = "~> 1.11.4"
 }
 provider "aws" {
   region = var.aws_region
