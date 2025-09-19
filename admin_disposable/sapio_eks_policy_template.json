@@ -74,7 +74,8 @@
         "iam:PutRolePolicy","iam:DeleteRolePolicy",
         "iam:TagRole","iam:UntagRole",
         "iam:CreateInstanceProfile","iam:AddRoleToInstanceProfile","iam:RemoveRoleFromInstanceProfile","iam:DeleteInstanceProfile",
-        "iam:CreateOpenIDConnectProvider","iam:DeleteOpenIDConnectProvider","iam:TagOpenIDConnectProvider"
+        "iam:CreateOpenIDConnectProvider","iam:DeleteOpenIDConnectProvider","iam:TagOpenIDConnectProvider",
+        "iam:ListInstanceProfilesForRole"
       ],
       "Resource": "*"
     },
@@ -145,7 +146,9 @@
       "Effect": "Allow",
       "Action": [
         "logs:CreateLogGroup","logs:DescribeLogGroups","logs:PutRetentionPolicy",
-        "logs:TagResource", "logs:ListTagsForResource"
+        "logs:TagResource", "logs:ListTagsForResource", "logs:DeleteLogGroup",
+        "logs:ListLogStreams","logs:CreateLogStream","logs:PutLogEvents",
+        "logs:DescribeLogStreams","logs:GetLogEvents","logs:FilterLogEvents"
       ],
       "Resource": "*"
     },
