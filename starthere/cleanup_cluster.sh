@@ -110,6 +110,7 @@ terraform destroy \
     -target=kubernetes_service_v1.sapio_bls_nlb \
     -target=kubernetes_horizontal_pod_autoscaler_v2.sapio_app_hpa \
     -target=kubernetes_service_v1.analytic_server_svc \
+    -target=kubernetes_secret.es_http_tls \
     -target=kubernetes_secret_v1.mysql_app1_creds \
     -target=kubernetes_secret_v1.mysql_portal_creds \
     -target=kubernetes_secret_v1.mysql_root_creds \

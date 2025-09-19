@@ -266,12 +266,10 @@ resource "helm_release" "cert_bootstrap" {
   depends_on = [helm_release.cert_manager]
 }
 # actively wait until the Certificate is Ready and Secret exists
-resource "null_resource" "wait_es_http_tls" {
-  provisioner "local-exec" {
-    command = <<EOT
-kubectl wait --for=condition=Ready certificate/es-http-cert -n ${local.es_namespace} --timeout=300s && \
-kubectl get secret es-http-tls -n ${local.es_namespace} -o jsonpath='{.data.tls\.crt}' | grep -q .
-EOT
+data "kubernetes_secret" "es_http_tls" {
+  metadata {
+    name      = "es-http-tls"
+    namespace = local.es_namespace
   }
   depends_on = [helm_release.cert_bootstrap]
 }

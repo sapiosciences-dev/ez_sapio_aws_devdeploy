@@ -53,7 +53,7 @@ resource "helm_release" "elasticsearch" {
   ]
 
 
-  depends_on = [null_resource.wait_es_http_tls, module.eks]
+  depends_on = [data.kubernetes_secret.es_http_tls, module.eks]
 }
 
 # Secret with desired app password (namespace "elasticsearch" so Job can read it)
