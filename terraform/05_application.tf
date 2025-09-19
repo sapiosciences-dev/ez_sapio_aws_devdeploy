@@ -150,7 +150,7 @@ resource "kubernetes_service_v1" "analytic_server_svc" {
       protocol    = "TCP"
     }
   }
-    depends_on = [kubernetes_deployment_v1.analytic_server_deployment]
+  depends_on = [kubernetes_deployment_v1.analytic_server_deployment]
 }
 
 ################################
@@ -274,6 +274,9 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
       metadata {
         labels = {
           app = local.sapio_bls_app_name
+        }
+        annotations = {
+          "karpenter.sh/do-not-disrupt" = "true"  # <- opt out of voluntary disruption every 28 days. Sapio BLS server should never be down without prior notice.
         }
       }
       spec {
