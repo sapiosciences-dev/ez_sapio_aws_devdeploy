@@ -36,7 +36,8 @@
       "Effect": "Allow",
       "Action": [
         "iam:CreatePolicy","iam:DeletePolicy", "iam:TagPolicy", "iam:GetPolicy",
-        "iam:CreatePolicyVersion","iam:DeletePolicyVersion","iam:ListPolicyVersions"
+        "iam:CreatePolicyVersion","iam:DeletePolicyVersion","iam:ListPolicyVersions",
+        "iam:GetPolicyVersion"
       ],
       "Resource": "arn:aws:iam::<<<ACCOUNT_ID>>>:policy/*"
     },
