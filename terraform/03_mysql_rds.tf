@@ -168,7 +168,7 @@ resource "aws_db_instance" "sapio_mysql_replica" {
   engine                 = "mysql"
   engine_version         = aws_db_instance.sapio_mysql.engine_version
   instance_class         = var.mysql_instance_class
-  replicate_source_db    = aws_db_instance.sapio_mysql.id
+  replicate_source_db    = aws_db_instance.sapio_mysql.arn
   db_subnet_group_name   = aws_db_subnet_group.sapio_mysql.name
   vpc_security_group_ids = [aws_security_group.rds_mysql.id]
   publicly_accessible    = false

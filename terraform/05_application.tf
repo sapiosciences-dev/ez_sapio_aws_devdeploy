@@ -282,13 +282,18 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           image = var.sapio_bls_docker_image
           name  = "${local.sapio_bls_app_name}-sapio-app-pod"
           port {
+            container_port = 22
+            name           = "ssh"
+            protocol       = "TCP"
+          }
+          port {
             container_port = 443
             name           = "https"
             protocol       = "TCP"
           }
           port {
             container_port = 1099
-            name           = "RMI"
+            name           = "rmi"
             protocol       = "TCP"
           }
           port {
