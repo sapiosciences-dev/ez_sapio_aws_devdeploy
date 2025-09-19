@@ -10,7 +10,6 @@ resource "random_password" "sapio_elasticsearch" {
 }
 
 locals {
-  es_namespace             = "elasticsearch"
   es_release_name          = "elasticsearch"
   es_app_user              = "sapio_app"
   es_index_pattern         = "*"

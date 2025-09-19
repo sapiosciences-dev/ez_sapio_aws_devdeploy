@@ -17,7 +17,7 @@ resource "random_password" "analytic_server_api_key"{
 locals {
   #YQ: This is a runtime level secret so it can be on ENV.
   analytic_server_api_key = random_password.analytic_server_api_key.result
-  analytic_server_ns = "sapio-analytic-server"
+
 
   #YQ: You probably want to change these trust stores, although by default they are private to the EKS so not the end of the world to leave them. We have randomized API key anyways.
   #See my github manual https://github.com/sapiosciences/sapioanalyticserver-tutorials
@@ -25,7 +25,6 @@ locals {
   analytic_server_keystore_password = "123456"
   analytic_server_keystore_base64 = "MIIKFAIBAzCCCb4GCSqGSIb3DQEHAaCCCa8EggmrMIIJpzCCBa4GCSqGSIb3DQEHAaCCBZ8EggWbMIIFlzCCBZMGCyqGSIb3DQEMCgECoIIFQDCCBTwwZgYJKoZIhvcNAQUNMFkwOAYJKoZIhvcNAQUMMCsEFIQfCQ5TegpDnwocrqWOI9ZrYTaKAgInEAIBIDAMBggqhkiG9w0CCQUAMB0GCWCGSAFlAwQBKgQQ"
 
-  sapio_ns = "sapio"
   sapio_bls_app_name = "${local.prefix_env}-sapio-app"
   jdbc_url_root = "jdbc:mysql://${aws_db_instance.sapio_mysql.address}:${aws_db_instance.sapio_mysql.port}/"
   jdbc_url_suffix = "?trustServerCertificate=true&allowPublicKeyRetrieval=true"

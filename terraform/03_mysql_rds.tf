@@ -7,7 +7,7 @@
 # --- Generate a DB password ---
 resource "random_password" "sapio_mysql_root" {
   length  = 32
-  special = true
+  special = false
 }
 
 locals {

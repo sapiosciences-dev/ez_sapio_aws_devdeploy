@@ -207,6 +207,33 @@ resource "aws_vpc_endpoint" "private_link_ec2messages" {
   }
 }
 
+
+
+# Namespace creations
+locals{
+  analytic_server_ns = "sapio-analytic-server"
+  sapio_ns = "sapio"
+  es_namespace             = "elasticsearch"
+}
+resource "kubernetes_namespace" "sapio_analytic_server" {
+  metadata {
+    name = local.analytic_server_ns
+  }
+  depends_on = [module.eks]
+}
+resource "kubernetes_namespace" "sapio" {
+  metadata {
+    name = local.sapio_ns
+  }
+  depends_on = [module.eks]
+}
+resource "kubernetes_namespace" "elasticsearch" {
+  metadata {
+    name = local.es_namespace
+  }
+  depends_on = [module.eks]
+}
+
 ## SELF SIGNING CERTIFICATE MANAGEMENT WITHIN THE CLUSTER
 # cert-manager (unchanged)
 resource "helm_release" "cert_manager" {
@@ -218,7 +245,8 @@ resource "helm_release" "cert_manager" {
   create_namespace = true
   wait             = true
   set = [{ name = "installCRDs", value = "true" }]
-  depends_on = [module.eks]
+  depends_on = [module.eks, kubernetes_namespace.elasticsearch,
+    kubernetes_namespace.sapio, kubernetes_namespace.sapio_analytic_server]
 }
 
 # install issuers + ES HTTP Certificate via local chart
