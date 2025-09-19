@@ -131,7 +131,7 @@
       "Effect": "Allow",
       "Action": [
         "kms:DescribeKey", "kms:CreateGrant", "kms:Decrypt", "kms:GenerateDataKey",
-        "kms:TagResource", "kms:CreateKey",
+        "kms:TagResource", "kms:CreateKey", "kms:CreateAlias",
         "secretsmanager:CreateSecret", "secretsmanager:TagResource"
       ],
       "Resource": "*"
