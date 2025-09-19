@@ -40,7 +40,7 @@ sudo apt-get update
 
 # Remove all unoffical Docker versions from official apt.
 for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
-sudo apt install awscli terraform helm docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+sudo apt install awscli terraform=1.11.4-1 helm docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
 
 echo "================================================="
 echo "✅ Installed AWS CLI, Terraform, and Docker"
