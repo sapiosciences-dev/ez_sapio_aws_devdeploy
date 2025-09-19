@@ -110,6 +110,10 @@ terraform destroy \
     -target=kubernetes_service_v1.sapio_bls_nlb \
     -target=kubernetes_horizontal_pod_autoscaler_v2.sapio_app_hpa \
     -target=kubernetes_service_v1.analytic_server_svc \
+    -target=kubernetes_secret_v1.mysql_app1_creds \
+    -target=kubernetes_secret_v1.mysql_portal_creds \
+    -target=kubernetes_secret_v1.mysql_root_creds \
+    -target=kubernetes_secret_v1.es_app_creds \
     -var-file=$TFVARS_FILE
 
 echo "✅ kubernetes_deployment_v1 deleted"
