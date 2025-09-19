@@ -101,10 +101,12 @@ echo "🏃 1 of 3 - Running terraform destroy on kubernetes_deployment_v1..."
 terraform destroy \
     -auto-approve \
     -target=kubernetes_deployment_v1.sapio_app_deployment \
-    -var-file=$TFVARS_FILE
-terraform destroy \
-    -auto-approve \
     -target=kubernetes_deployment_v1.analytic_server_deployment \
+    -target=helm_release.cert_manager \
+    -target=helm_release.cert_bootstrap \
+    -target=helm_release.elasticsearch \
+    -target=aws_db_instance.sapio_mysql_replica \
+    -target=aws_db_instance.sapio_mysql \
     -var-file=$TFVARS_FILE
 
 echo "✅ kubernetes_deployment_v1 deleted"
