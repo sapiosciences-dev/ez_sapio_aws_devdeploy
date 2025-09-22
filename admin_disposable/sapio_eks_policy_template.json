@@ -159,7 +159,7 @@
       "Action": [
         "ec2:Describe*","eks:Describe*","rds:Describe*","ecr:Describe*","iam:GetRole",
         "iam:ListAttachedRolePolicies","iam:GetOpenIDConnectProvider", "iam:ListRolePolicies",
-        "sts:GetCallerIdentity"
+        "sts:GetCallerIdentity","ssm:GetParameter"
       ],
       "Resource": "*"
     }
