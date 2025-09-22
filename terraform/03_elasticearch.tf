@@ -38,7 +38,7 @@ resource "helm_release" "elasticsearch" {
     { name = "resources.limits.memory",                   value = var.es_memory_limit },
 
     # Persistent storage
-    { name = "volumeClaimTemplate.storageClassName",      value = "ebs-storage-class" },
+    { name = "volumeClaimTemplate.storageClassName",      value = "gp2" },
     { name = "volumeClaimTemplate.resources.requests.storage", value = var.es_storage_size },
 
     # Avoid mmap unless you've set vm.max_map_count on nodes
