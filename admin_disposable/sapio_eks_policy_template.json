@@ -75,7 +75,7 @@
         "iam:TagRole","iam:UntagRole",
         "iam:CreateInstanceProfile","iam:AddRoleToInstanceProfile","iam:RemoveRoleFromInstanceProfile","iam:DeleteInstanceProfile",
         "iam:CreateOpenIDConnectProvider","iam:DeleteOpenIDConnectProvider","iam:TagOpenIDConnectProvider",
-        "iam:ListInstanceProfilesForRole", "iam:TagInstanceProfile"
+        "iam:ListInstanceProfilesForRole", "iam:TagInstanceProfile", "iam:GetInstanceProfile"
       ],
       "Resource": "*"
     },
@@ -87,7 +87,7 @@
         "arn:aws:iam::<<<ACCOUNT_ID>>>:role/eks*",
         "arn:aws:iam::<<<ACCOUNT_ID>>>:role/cluster*",
         "arn:aws:iam::<<<ACCOUNT_ID>>>:role/nodegroup*",
-        "arn:aws:iam::<<<ACCOUNT_ID>>>:role/sapio-bls-nodegroup*"
+        "arn:aws:iam::<<<ACCOUNT_ID>>>:role/sapio-bls*"
       ]
     },
     {
