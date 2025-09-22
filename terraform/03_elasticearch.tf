@@ -33,29 +33,29 @@ resource "helm_release" "elasticsearch" {
     { name = "resources.limits.memory",                   value = var.es_memory_limit },
 
     # Persistent storage
-    { name = "volumeClaimTemplate.storageClassName",      value = "gp3" },
+    { name = "volumeClaimTemplate.storageClassName",      value = "ebs-storage-class" },
     { name = "volumeClaimTemplate.resources.requests.storage", value = var.es_storage_size },
 
     # Avoid mmap unless you've set vm.max_map_count on nodes
-    # <-- Replace all prior esConfig.*.* entries with just this one:
+    # --- Elasticsearch config (note the new http-certs path) ---
     {
-      name  = "esConfig.elasticsearch\\.yml"
+      name  = "esConfig.elasticsearch\\.yml",
       value = <<-EOT
-        node.store.allow_mmap: false
-        xpack.security.enabled: true
-        xpack.security.http.ssl.enabled: true
-        xpack.security.http.ssl.certificate: /usr/share/elasticsearch/config/certs/tls.crt
-        xpack.security.http.ssl.key: /usr/share/elasticsearch/config/certs/tls.key
-        xpack.security.http.ssl.certificate_authorities:
-          - /usr/share/elasticsearch/config/certs/ca.crt
-      EOT
+      node.store.allow_mmap: false
+      xpack.security.enabled: true
+      xpack.security.http.ssl.enabled: true
+      xpack.security.http.ssl.certificate: /usr/share/elasticsearch/config/http-certs/tls.crt
+      xpack.security.http.ssl.key: /usr/share/elasticsearch/config/http-certs/tls.key
+      xpack.security.http.ssl.certificate_authorities:
+        - /usr/share/elasticsearch/config/http-certs/ca.crt
+    EOT
     },
 
-    # HTTPS + mount certs from the secret created by cert-manager
-    { name = "protocol",                                  value = "https" },
-    { name = "secretMounts[0].name",                      value = "http-certs" },
-    { name = "secretMounts[0].secretName",                value = "es-http-tls" },
-    { name = "secretMounts[0].path",                      value = "/usr/share/elasticsearch/config/certs" },
+    # --- Mount your TLS secret at a unique path ---
+    { name = "protocol", value = "https" },
+    { name = "secretMounts[0].name", value = "http-certs" },
+    { name = "secretMounts[0].secretName", value = "es-http-tls" },
+    { name = "secretMounts[0].path", value = "/usr/share/elasticsearch/config/http-certs" },
   ]
 
 

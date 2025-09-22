@@ -12,6 +12,13 @@ kubectl get nodes
 This command will list all the pods in the default namespace.
 
 ```shell
-helm list -n elasticsearch
+helm list -n <namespace>
 ```
-This will let you look at helm chart for the elasticsearch namespace.
+This will let you look at helm chart for the provided namespace.
+
+```shell
+kubectl -n <namespace> get statefulsets,deploy,po,pvc,svc,events
+```
+This command will get all namespaced events. 
+You will then be able to see deployment error logs in the namespace.
+

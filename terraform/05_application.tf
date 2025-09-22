@@ -122,7 +122,8 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
         }
       }
     }
-  }
+  },
+  depends_on = [kubernetes_service_account_v1.analytic_server_account]
 }
 
 #############################################
@@ -264,6 +265,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
 
   spec {
     replicas = 1 # DO NOT MODIFY
+    service_account_name = local.app_serviceaccount
     selector {
       match_labels = {
         app = local.sapio_bls_app_name
@@ -521,7 +523,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
   # Give time for the cluster to complete (controllers, RBAC and IAM propagation)
   # See https://github.com/setheliot/eks_auto_mode/blob/main/docs/separate_configs.md
   depends_on = [module.eks, helm_release.cluster_autoscaler, aws_db_instance.sapio_mysql, aws_db_instance.sapio_mysql_replica,
-    helm_release.elasticsearch, data.kubernetes_secret.es_http_tls]
+    helm_release.elasticsearch, data.kubernetes_secret.es_http_tls, kubernetes_service_account_v1.sapio_account]
 }
 
 # There is no LB support. But replica = 1 means there is no replica. This is the easiest way to export the app.
