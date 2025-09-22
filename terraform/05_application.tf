@@ -266,7 +266,6 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
 
   spec {
     replicas = 1 # DO NOT MODIFY
-    service_account_name = local.app_serviceaccount
     selector {
       match_labels = {
         app = local.sapio_bls_app_name
