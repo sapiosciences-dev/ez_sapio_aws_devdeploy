@@ -30,7 +30,7 @@ resource "helm_release" "elasticsearch" {
   set = [
     { name = "replicas",                                  value = tostring(var.es_num_desired_masters) },
     { name = "minimumMasterNodes",                        value = tostring(var.es_num_min_masters) },
-    { name = "esJavaOpts",                                value = "-Xms1g -Xmx1g" },
+    # { name = "esJavaOpts",                                value = "-Xms1g -Xmx1g" },
 
     { name = "resources.requests.cpu",                    value = var.es_cpu_request },
     { name = "resources.requests.memory",                 value = var.es_memory_request },
