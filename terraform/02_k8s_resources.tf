@@ -84,19 +84,18 @@ resource "kubernetes_persistent_volume_claim_v1" "sapio_ebs_pvc" {
 }
 
 # This will create the PVC, which will wait until a pod needs it, and then create a PersistentVolume
-resource "helm_release" "cluster_autoscaler" {
-  name       = "cluster-autoscaler"
-  repository = "https://kubernetes.github.io/autoscaler"
-  chart      = "cluster-autoscaler"
-  namespace  = "kube-system"
-
-  set = [
-    { name = "autoDiscovery.clusterName",                value = module.eks.cluster_name },
-    { name = "awsRegion",                                value = var.aws_region },
-    { name = "rbac.serviceAccount.create",               value = "true" },
-    { name = "extraArgs.scale-down-delay-after-add",     value = "2m" },
-    { name = "extraArgs.balance-similar-node-groups",    value = "true" }
-  ]
-  # If using IRSA, annotate SA with the IAM role that has autoscaling permissions
-  # set { name = "rbac.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn", value = aws_iam_role.ca.arn }
-}
+# Disable HELM chart autoscaler under EKS Auto Mode. Because we already have Karpenter managing scaling.
+# resource "helm_release" "cluster_autoscaler" {
+#   name       = "cluster-autoscaler"
+#   repository = "https://kubernetes.github.io/autoscaler"
+#   chart      = "cluster-autoscaler"
+#   namespace  = "kube-system"
+#
+#   set = [
+#     { name = "autoDiscovery.clusterName",                value = module.eks.cluster_name },
+#     { name = "awsRegion",                                value = var.aws_region },
+#     { name = "rbac.serviceAccount.create",               value = "true" },
+#     { name = "extraArgs.scale-down-delay-after-add",     value = "2m" },
+#     { name = "extraArgs.balance-similar-node-groups",    value = "true" }
+#   ]
+# }
