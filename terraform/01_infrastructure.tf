@@ -291,7 +291,6 @@ resource "helm_release" "cert_manager" {
   namespace        = local.cert_manager_ns
   create_namespace = true
   wait             = true
-  replace = true
   set = [{ name = "installCRDs", value = "true" }]
   depends_on = [module.eks, kubernetes_namespace.elasticsearch,
     kubernetes_namespace.sapio, kubernetes_namespace.sapio_analytic_server]
@@ -303,7 +302,6 @@ resource "helm_release" "cert_bootstrap" {
   chart      = "${path.module}/charts/cert-bootstrap"
   namespace  = local.cert_manager_ns
   wait       = true
-  replace = true
 
   set = [
     { name = "esNamespace",      value = local.es_namespace },
