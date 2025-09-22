@@ -63,7 +63,10 @@ at cluster level to your IAM principal.
 If you need to redeploy elasticsearch and lose all data, you can do the following:
 ```shell
 helm delete elasticsearch -n elasticsearch
+terraform destroy -target=helm_release.elasticsearch -var-file=environment/<env_filename>.tfvars
 ```
+Then rerun the terraform deploy script.
+
 You will have to rebuild the chem cartridge and elasticsearch state in Sapio app.
 This generally should be unnecessary but can be useful in dev.
 
