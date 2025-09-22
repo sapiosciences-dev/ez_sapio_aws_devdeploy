@@ -30,6 +30,11 @@ kubectl -n <namespace> get statefulsets,deploy,po,pvc,svc,events
 This command will get all namespaced events. 
 You will then be able to see deployment error logs in the namespace.
 
+```shell
+kubectl -n <namespace> get events --sort-by='.lastTimestamp'
+```
+This command will sort the events by time.
+
 ## Check Pod Status
 ```shell
 kubectl logs <pod-name> -n <namespace>
