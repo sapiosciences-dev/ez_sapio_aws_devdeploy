@@ -123,7 +123,7 @@ echo "🏃 2 of 3 - Running terraform destroy on kubernetes_persistent_volume_cl
 
 terraform destroy \
     -auto-approve \
-    -target=kubernetes_persistent_volume_claim_v1.ebs_pvc \
+    -target=kubernetes_persistent_volume_claim_v1.sapio_ebs_pvc \
     -var-file=$TFVARS_FILE
 
 echo "✅ kubernetes_persistent_volume_claim_v1 deleted"

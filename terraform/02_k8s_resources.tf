@@ -16,7 +16,7 @@
 #
 # EBS Storage Class
 
-resource "kubernetes_storage_class" "ebs" {
+resource "kubernetes_storage_class" "ebs_gp3" {
   metadata {
     name = "ebs-storage-class"
     annotations = {
@@ -50,9 +50,10 @@ resource "kubernetes_storage_class" "ebs" {
 
 #
 # EBS (Kubernetes) Persistent Volume Claim
-resource "kubernetes_persistent_volume_claim_v1" "ebs_pvc" {
+resource "kubernetes_persistent_volume_claim_v1" "sapio_ebs_pvc" {
   metadata {
     name = local.ebs_sapio_app_data_claim_name
+    namespace = local.sapio_ns
   }
 
   spec {
@@ -81,6 +82,7 @@ resource "kubernetes_persistent_volume_claim_v1" "ebs_pvc" {
   # See https://github.com/setheliot/eks_auto_mode/blob/main/docs/separate_configs.md
   depends_on = [module.eks]
 }
+
 # This will create the PVC, which will wait until a pod needs it, and then create a PersistentVolume
 resource "helm_release" "cluster_autoscaler" {
   name       = "cluster-autoscaler"

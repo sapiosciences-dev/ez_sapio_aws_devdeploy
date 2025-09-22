@@ -38,7 +38,7 @@ resource "helm_release" "elasticsearch" {
     { name = "resources.limits.memory",                   value = var.es_memory_limit },
 
     # Persistent storage
-    { name = "volumeClaimTemplate.storageClassName",      value = "gp2" },
+    { name = "volumeClaimTemplate.storageClassName",      value = "ebs-storage-class" },
     { name = "volumeClaimTemplate.resources.requests.storage", value = var.es_storage_size },
 
     # Avoid mmap unless you've set vm.max_map_count on nodes
@@ -64,7 +64,7 @@ resource "helm_release" "elasticsearch" {
   ]
 
 
-  depends_on = [data.kubernetes_secret.es_http_tls, module.eks]
+  depends_on = [data.kubernetes_secret.es_http_tls, module.eks, kubernetes_storage_class.ebs_gp3 ]
 }
 
 # Secret with desired app password (namespace "elasticsearch" so Job can read it)
