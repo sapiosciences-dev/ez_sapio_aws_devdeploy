@@ -291,9 +291,9 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           "sapio/pool" = "sapio-bls"
         }
         toleration {
-          key = "spaio/scaling",
-          operator = "Equal",
-          value = "pinned",
+          key = "spaio/scaling"
+          operator = "Equal"
+          value = "pinned"
           effect = "NoSchedule"
         }
         container {
