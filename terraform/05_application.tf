@@ -58,6 +58,7 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
         }
       }
       spec {
+
         service_account_name = local.app_serviceaccount
 
         container {
@@ -282,13 +283,19 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
         labels = {
           app = local.sapio_bls_app_name
         }
-        annotations = {
-          "karpenter.sh/do-not-disrupt" = "true"  # <- opt out of voluntary disruption every 28 days. Sapio BLS server should never be down without prior notice.
-        }
       }
       spec {
         #YQ: The BLS does not have autoscale capability, so we will directly expose without a service.
         service_account_name = local.app_serviceaccount
+        node_selector = {
+          "sapio/pool" = "sapio-bls"
+        }
+        toleration {
+          key = "spaio/scaling",
+          operator = "Equal",
+          value = "pinned",
+          effect = "NoSchedule"
+        }
         container {
           image = var.sapio_bls_docker_image
           name  = "${local.sapio_bls_app_name}-sapio-app-pod"
@@ -500,11 +507,11 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
 
         volume {
           name = "internal-ca"
-          secret {
-            secret_name = "es-http-tls"   # the Certificate's secret
+          config_map {
+            name = "es-ca"        # created by your Helm chart in .Values.sapioNamespace
             items {
               key  = "ca.crt"
-              path = "es-ca.crt"          # must end in .crt
+              path = "es-ca.crt"  # keep .crt suffix if your app expects it
             }
           }
         }

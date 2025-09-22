@@ -80,11 +80,50 @@ module "eks" {
   # This replaces the more complex eks_managed_node_groups block
   cluster_compute_config = {
     enabled    = true
-    node_pools = ["general-purpose"]
+    node_pools = ["general-purpose", "system"]
   }
 
   # Cluster access entry
   enable_cluster_creator_admin_permissions = true
+
+  # --- SELF-MANAGED NODE GROUP (disruption-averse) ---
+  # This ASG is NOT managed by Auto Mode, so no 21-day rotation.
+  self_managed_node_groups = {
+    sapio_bls = {
+      name       = "sapio-bls"
+      subnet_ids = module.vpc.private_subnets
+
+      # Pin capacity to avoid any scale-in/scale-out churn
+      min_size     = 1
+      max_size     = 1
+      desired_size = 1
+
+      # Use On-Demand capacity and a single instance type
+      instance_type = var.sapio_bls_instance_type
+
+      # Use latest EKS-optimized AL2023 AMI (x86_64)
+      ami_type = "AL2023_x86_64_STANDARD"
+
+      # Protect new instances from scale-in so the ASG won't pick them
+      # for termination during any scale-in or health churn
+      asg_new_instances_protected_from_scale_in = true
+
+      # Keep this group's desired size under your control (no instance refresh)
+      enable_instance_refresh = false
+
+      # Optional: add a taint so only selected workloads land here
+      taints = [{
+        key    = "sapio/scaling"
+        value  = "pinned"
+        effect = "NO_SCHEDULE"
+      }]
+
+      labels = {
+        "eks.amazonaws.com/compute-type" = "self-managed"
+        "sapio/pool"                     = "sapio-bls"
+      }
+    }
+  }
 
   tags = {
     Environment = local.prefix_env
@@ -98,7 +137,15 @@ module "eks" {
   # ServiceAccount, Deployment, were observed due to RBAC propagation not 
   # completed. Therefore raising this from its default 30s 
   dataplane_wait_duration = "60s"
+}
 
+# CSI Driver. Probably not needed because auto-mode installs it?
+resource "aws_eks_addon" "ebs_csi" {
+  cluster_name             = module.eks.cluster_name
+  addon_name               = "aws-ebs-csi-driver"
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+  depends_on               = [module.eks]
 }
 
 locals {

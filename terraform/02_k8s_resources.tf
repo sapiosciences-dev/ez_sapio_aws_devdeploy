@@ -40,6 +40,8 @@ resource "kubernetes_storage_class" "ebs_gp3" {
   parameters = {
     type      = "gp3"
     encrypted = "true"
+    iops     = "3000"
+    throughput = "125"
   }
 
   # Give time for the cluster to complete (controllers, RBAC and IAM propagation)

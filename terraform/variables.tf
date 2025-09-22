@@ -1,13 +1,13 @@
 # Firewall
 variable admin_cidr_blocks {
-    description = "The CIDR blocks for admin access (e.g., SSH, RDP). Example: "
-    type        = list(string)
-    default     = ["127.0.0.1/32"]
+  description = "The CIDR blocks for admin access (e.g., SSH, RDP). Example: "
+  type        = list(string)
+  default     = ["127.0.0.1/32"]
 }
 variable user_cidr_blocks {
-    description = "The CIDR block for end-user access (e.g., HTTP, HTTPS). Example: "
-    type        = list(string)
-    default     = ["0.0.0.0/0"]
+  description = "The CIDR block for end-user access (e.g., HTTP, HTTPS). Example: "
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
 }
 
 # Define environment stage name
@@ -164,6 +164,11 @@ variable "analytic_server_target_memory_utilization_percentage" {
   default     = 70
 }
 # BLS Server
+variable "sapio_bls_instance_type"{
+  description = "EC2 instance type for the self-managed node group running the BLS server"
+  type        = string
+  default     = "m5.xlarge"
+}
 variable "bls_server_cpu_request" {
   description = "CPU request for BLS Server"
   type        = string

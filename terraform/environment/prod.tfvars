@@ -44,9 +44,10 @@ analytic_server_target_memory_utilization_percentage = 70
 
 ## Sapio BLS
 # This is Java app so memory limit and request should be identical.
-bls_server_cpu_request = "2"
-bls_server_memory_request = "32Gi"
-bls_server_cpu_limit = "4"
-bls_server_memory_limit = "32Gi"
+sapio_bls_instance_type = "m5.2xlarge" #m5.2xlarge has 32Gi memory, 8 vCPU. Adjust according to your load.
+bls_server_cpu_request = "4"
+bls_server_memory_request = "30Gi"
+bls_server_cpu_limit = "7500m"
+bls_server_memory_limit = "30Gi"
 bls_server_storage_size = "1000Gi"
 bls_server_temp_storage_size = "100Gi"
