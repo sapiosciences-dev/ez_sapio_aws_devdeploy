@@ -86,7 +86,8 @@
       "Resource": [
         "arn:aws:iam::<<<ACCOUNT_ID>>>:role/eks*",
         "arn:aws:iam::<<<ACCOUNT_ID>>>:role/cluster*",
-        "arn:aws:iam::<<<ACCOUNT_ID>>>:role/nodegroup*"
+        "arn:aws:iam::<<<ACCOUNT_ID>>>:role/nodegroup*",
+        "arn:aws:iam::<<<ACCOUNT_ID>>>:role/sapio-bls-nodegroup*"
       ]
     },
     {

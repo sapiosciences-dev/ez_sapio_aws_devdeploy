@@ -53,8 +53,7 @@ provider "kubernetes" {
   cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
   # token                  = data.aws_eks_cluster_auth.cluster_auth.token
   exec {
-    # Use v1beta1 (or "v1" if your installed aws/kubectl supports it)
-    api_version = "client.authentication.k8s.io/v1beta1"
+    api_version = "client.authentication.k8s.io/v1"
     command     = "aws"
     args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
   }
