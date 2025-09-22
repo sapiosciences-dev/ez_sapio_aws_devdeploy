@@ -170,7 +170,7 @@ resource "kubernetes_horizontal_pod_autoscaler_v2" "analytic_server_hpa" {
     scale_target_ref {
       api_version = "apps/v1"
       kind        = "Deployment"
-      name        = kubernetes_deployment_v1.analytic_server_deployment.metadata[0].name
+      name        = kubernetes_deployment_v1.analytic_server_deployment[count.index].metadata[0].name
     }
 
     min_replicas = var.analytic_server_min_replicas
@@ -461,9 +461,12 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
             name  = "SapioNativeExecAPIKey"
             value = local.analytic_server_api_key
           }
-          env {
-            name  = "SapioNativeExecHost"
-            value = "${kubernetes_service_v1.analytic_server_svc.metadata[0].name}.${kubernetes_service_v1.analytic_server_svc.metadata[0].namespace}.svc"
+          dynamic "env" {
+            for_each = var.analytic_enabled ? [1] : []
+            content {
+              name  = "SapioNativeExecHost"
+              value = "${kubernetes_service_v1.analytic_server_svc[0].metadata[0].name}.${kubernetes_service_v1.analytic_server_svc[0].metadata[0].namespace}.svc"
+            }
           }
           env {
             name  = "SapioNativeExecPort"
