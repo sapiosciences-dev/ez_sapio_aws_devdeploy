@@ -148,7 +148,7 @@
       "Action": [
         "logs:CreateLogGroup","logs:DescribeLogGroups","logs:PutRetentionPolicy",
         "logs:TagResource", "logs:ListTagsForResource", "logs:DeleteLogGroup",
-        "logs:ListLogStreams","logs:CreateLogStream","logs:PutLogEvents",
+        "logs:CreateLogStream","logs:PutLogEvents",
         "logs:DescribeLogStreams","logs:GetLogEvents","logs:FilterLogEvents"
       ],
       "Resource": "*"
