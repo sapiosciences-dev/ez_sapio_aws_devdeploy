@@ -211,7 +211,6 @@ fi
 #  prefix_env = "${local.prefix}-${var.env_name}"
 #  cluster_name    = "${local.prefix_env}-cluster"
 CLUSTER_NAME="ekssapio-$ENV_NAME-cluster"
-aws eks get-token --cluster-name "$CLUSTER_NAME" --region "$REGION" || true
 
 echo "🏃 Running terraform init..."
 if ! terraform init 2> terraform_init_err.log; then

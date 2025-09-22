@@ -47,7 +47,6 @@ fi
 # Get AWS Account ID using STS
 AWS_ACCOUNT=$(aws sts get-caller-identity --query "Account" --output text 2>/dev/null)
 CLUSTER_NAME="ekssapio-$ENV_NAME-cluster"
-aws eks get-token --cluster-name "$CLUSTER_NAME" --region "$REGION" || true
 
 # Check if AWS_ACCOUNT is empty (invalid credentials)
 if [[ -z "$AWS_ACCOUNT" || "$AWS_ACCOUNT" == "None" ]]; then
