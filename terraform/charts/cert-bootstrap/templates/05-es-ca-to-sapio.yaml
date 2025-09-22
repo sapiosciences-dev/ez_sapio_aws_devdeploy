@@ -5,6 +5,9 @@ kind: ConfigMap
 metadata:
   name: es-ca
   namespace: {{ .Values.sapioNamespace | quote }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "50"
 data:
   ca.crt: |
     {{ index $src.data "tls.crt" | b64dec }}

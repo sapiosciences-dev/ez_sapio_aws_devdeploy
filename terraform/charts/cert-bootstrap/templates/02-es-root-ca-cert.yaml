@@ -3,6 +3,9 @@ kind: Certificate
 metadata:
   name: es-root-ca
   namespace: cert-manager
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "20"
 spec:
   isCA: true
   commonName: es-root-ca

@@ -148,7 +148,7 @@ resource "kubernetes_job_v1" "es_bootstrap_permissions" {
         volume {
           name = "app-creds"
           secret {
-            secret_name = random_password.sapio_elasticsearch.result
+            secret_name = kubernetes_secret_v1.es_app_creds.metadata[0].name
             items {
               key  = "password"
               path = "user_pw"
