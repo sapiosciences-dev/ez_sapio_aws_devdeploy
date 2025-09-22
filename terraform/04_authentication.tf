@@ -50,7 +50,7 @@ data "aws_iam_policy_document" "service_account_trust_policy" {
       variable = "${local.oidc}:aud"
       values = ["sts.amazonaws.com"]
     }
-  },
+  }
 
   depends_on = [kubernetes_namespace.elasticsearch, kubernetes_namespace.sapio, kubernetes_namespace.sapio_analytic_server]
 }
