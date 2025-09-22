@@ -56,7 +56,7 @@ After deployment, you may receive an error if you use the AWS console,
 navigating to EKS Compute tab, and see a message about insufficient permissions.
 This may be the case even if you have Amazon default admin permissions.
 
-To resolve this issue, go to the EKS Access tab, add a new policy "AmazonEKSViewPolicy" 
+To resolve this issue, go to the EKS Access tab, add a new policy "AmazonEKSAdminViewPolicy" 
 at cluster level to your IAM principal.
 
 # Redeploy NEW elasticsearch and lose data
