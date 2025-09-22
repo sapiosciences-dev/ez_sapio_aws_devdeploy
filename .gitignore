@@ -1,4 +1,6 @@
 containers/sapio_bls/files/**
+**/.terraform.lock.hcl
+**/*.log
 
 # Local .terraform directories
 .terraform/
