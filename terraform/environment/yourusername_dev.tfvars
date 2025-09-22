@@ -18,9 +18,9 @@ eks_cluster_version = "1.33"
 es_num_desired_masters = 1
 es_num_min_masters     = 1
 es_cpu_request         = "1"
-es_memory_request      = "8Gi"
+es_memory_request      = "6Gi"
 es_cpu_limit           = "2"
-es_memory_limit        = "16Gi"
+es_memory_limit        = "14Gi"
 es_storage_size       = "100Gi"
 
 ## MySQL Specs
@@ -32,9 +32,9 @@ mysql_skip_final_snapshot = true
 
 ## Analytic Server
 analytic_server_cpu_request = "1"
-analytic_server_memory_request = "16Gi"
+analytic_server_memory_request = "14Gi"
 analytic_server_cpu_limit = "2"
-analytic_server_memory_limit = "32Gi"
+analytic_server_memory_limit = "30Gi"
 analytic_server_temp_storage_size = "100Gi"
 analytic_server_min_replicas = 1
 analytic_server_max_replicas = 1
@@ -44,8 +44,8 @@ analytic_server_target_memory_utilization_percentage = 70
 ## Sapio BLS
 # This is Java app so memory limit and request should be identical.
 bls_server_cpu_request = "1"
-bls_server_memory_request = "16Gi"
+bls_server_memory_request = "14Gi"
 bls_server_cpu_limit = "2"
-bls_server_memory_limit = "16Gi"
+bls_server_memory_limit = "14Gi"
 bls_server_storage_size = "30Gi"
 bls_server_temp_storage_size = "10Gi"

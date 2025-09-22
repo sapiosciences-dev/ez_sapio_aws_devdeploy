@@ -22,3 +22,10 @@ kubectl -n <namespace> get statefulsets,deploy,po,pvc,svc,events
 This command will get all namespaced events. 
 You will then be able to see deployment error logs in the namespace.
 
+# Assigning Console View Permissions
+After deployment, you may receive an error if you use the AWS console,
+navigating to EKS Compute tab, and see a message about insufficient permissions.
+This may be the case even if you have Amazon default admin permissions.
+
+To resolve this issue, go to the EKS Access tab, add a new policy "AmazonEKSViewPolicy" 
+at cluster level to your IAM principal.

@@ -18,9 +18,9 @@ eks_cluster_version = "1.33"
 es_num_desired_masters = 3
 es_num_min_masters     = 2
 es_cpu_request         = "2"
-es_memory_request      = "32Gi"
+es_memory_request      = "30Gi"
 es_cpu_limit           = "4"
-es_memory_limit        = "64Gi"
+es_memory_limit        = "62Gi"
 es_storage_size       = "500Gi"
 
 ## MySQL Specs
