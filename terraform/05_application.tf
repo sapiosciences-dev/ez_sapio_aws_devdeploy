@@ -34,6 +34,7 @@ locals {
 # Analytic server (Deployment)
 ###############################
 resource "kubernetes_deployment_v1" "analytic_server_deployment" {
+  count = var.analytic_enabled ? 1 : 0
   metadata {
     name = "${local.analytic_server_app_name}-analytic-server-deployment"
     namespace = local.analytic_server_ns
@@ -131,6 +132,7 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
 # Stable in-cluster Service for main app use
 #############################################
 resource "kubernetes_service_v1" "analytic_server_svc" {
+  count = var.analytic_enabled ? 1 : 0
   metadata {
     name   = "${local.analytic_server_app_name}-analytic"
     namespace = local.analytic_server_ns
@@ -159,6 +161,7 @@ resource "kubernetes_service_v1" "analytic_server_svc" {
 # HPA (pod-level autoscaling)
 ################################
 resource "kubernetes_horizontal_pod_autoscaler_v2" "analytic_server_hpa" {
+  count = var.analytic_enabled ? 1 : 0
   metadata {
     name = "${local.analytic_server_app_name}-analytic-server-hpa"
     namespace = local.analytic_server_ns

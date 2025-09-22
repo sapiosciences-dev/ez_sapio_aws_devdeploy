@@ -31,6 +31,7 @@ mysql_retention_period_days = 14
 mysql_skip_final_snapshot = false
 
 ## Analytic Server
+analytic_enabled = true
 analytic_server_cpu_request = "2"
 analytic_server_memory_request = "22Gi"
 analytic_server_cpu_limit = "8"

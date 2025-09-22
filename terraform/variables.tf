@@ -113,6 +113,11 @@ variable "mysql_skip_final_snapshot" {
   default     = false
 }
 # Analytic Server
+variable "analytic_enabled" {
+  description = "Whether to deploy the Analytic Server"
+  type        = bool
+  default     = true
+}
 variable "analytic_server_cpu_request" {
   description = "CPU request for Analytic Server"
   type        = string
