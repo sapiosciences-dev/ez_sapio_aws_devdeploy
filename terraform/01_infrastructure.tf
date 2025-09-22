@@ -140,13 +140,13 @@ module "eks" {
 }
 
 # CSI Driver. Probably not needed because auto-mode installs it?
-resource "aws_eks_addon" "ebs_csi" {
-  cluster_name             = module.eks.cluster_name
-  addon_name               = "aws-ebs-csi-driver"
-  resolve_conflicts_on_create = "OVERWRITE"
-  resolve_conflicts_on_update = "OVERWRITE"
-  depends_on               = [module.eks]
-}
+# resource "aws_eks_addon" "ebs_csi" {
+#   cluster_name             = module.eks.cluster_name
+#   addon_name               = "aws-ebs-csi-driver"
+#   resolve_conflicts_on_create = "OVERWRITE"
+#   resolve_conflicts_on_update = "OVERWRITE"
+#   depends_on               = [module.eks]
+# }
 
 locals {
   publish_security_group = module.eks.node_security_group_id
