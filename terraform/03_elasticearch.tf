@@ -22,6 +22,11 @@ resource "helm_release" "elasticsearch" {
   namespace        = local.es_namespace
   create_namespace = true
 
+  wait             = true
+  atomic           = true
+  cleanup_on_fail  = true
+  max_history      = 5
+
   set = [
     { name = "replicas",                                  value = tostring(var.es_num_desired_masters) },
     { name = "minimumMasterNodes",                        value = tostring(var.es_num_min_masters) },

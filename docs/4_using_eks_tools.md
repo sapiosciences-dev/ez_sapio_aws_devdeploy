@@ -58,3 +58,14 @@ This may be the case even if you have Amazon default admin permissions.
 
 To resolve this issue, go to the EKS Access tab, add a new policy "AmazonEKSViewPolicy" 
 at cluster level to your IAM principal.
+
+# Redeploy NEW elasticsearch and lose data
+If you need to redeploy elasticsearch and lose all data, you can do the following:
+```shell
+helm delete elasticsearch -n elasticsearch
+```
+You will have to rebuild the chem cartridge and elasticsearch state in Sapio app.
+This generally should be unnecessary but can be useful in dev.
+
+Note: we intentionally do not set "replace=true" in to terraform script, 
+because the doc says it is unsafe to use in production.
