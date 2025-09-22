@@ -37,19 +37,25 @@ resource "helm_release" "elasticsearch" {
     { name = "volumeClaimTemplate.resources.requests.storage", value = var.es_storage_size },
 
     # Avoid mmap unless you've set vm.max_map_count on nodes
-    { name = "esConfig.elasticsearch\\.yml.node\\.store\\.allow_mmap", value = "false" },
+    # <-- Replace all prior esConfig.*.* entries with just this one:
+    {
+      name  = "esConfig.elasticsearch\\.yml"
+      value = <<-EOT
+        node.store.allow_mmap: false
+        xpack.security.enabled: true
+        xpack.security.http.ssl.enabled: true
+        xpack.security.http.ssl.certificate: /usr/share/elasticsearch/config/certs/tls.crt
+        xpack.security.http.ssl.key: /usr/share/elasticsearch/config/certs/tls.key
+        xpack.security.http.ssl.certificate_authorities:
+          - /usr/share/elasticsearch/config/certs/ca.crt
+      EOT
+    },
 
     # HTTPS + mount certs from the secret created by cert-manager
     { name = "protocol",                                  value = "https" },
     { name = "secretMounts[0].name",                      value = "http-certs" },
     { name = "secretMounts[0].secretName",                value = "es-http-tls" },
     { name = "secretMounts[0].path",                      value = "/usr/share/elasticsearch/config/certs" },
-
-    { name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.enabled",                    value = "true" },
-    { name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.enabled",       value = "true" },
-    { name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.certificate",   value = "/usr/share/elasticsearch/config/certs/tls.crt" },
-    { name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.key",           value = "/usr/share/elasticsearch/config/certs/tls.key" },
-    { name = "esConfig.elasticsearch\\.yml.xpack\\.security\\.http\\.ssl\\.certificate_authorities\\[0\\]", value = "/usr/share/elasticsearch/config/certs/ca.crt" }
   ]
 
 
