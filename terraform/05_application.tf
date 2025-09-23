@@ -385,7 +385,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
             value = "sapio"
           }
           env {
-            name = "ROOT_DB_PASSWORD"
+            name = "ROOT_DB_PASS"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret_v1.mysql_root_creds.metadata[0].name
