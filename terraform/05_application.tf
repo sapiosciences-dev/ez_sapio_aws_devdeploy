@@ -243,6 +243,7 @@ resource "kubernetes_secret_v1" "mysql_portal_creds" {
     password = random_password.sapio_mysql_portal.result
   }
   type = "Opaque"
+  depends_on = [kubernetes_namespace.sapio]
 }
 # App user for Sapio App
 resource "random_password" "sapio_mysql_app1" {
@@ -259,6 +260,7 @@ resource "kubernetes_secret_v1" "mysql_app1_creds" {
     password = random_password.sapio_mysql_app1.result
   }
   type = "Opaque"
+  depends_on = [kubernetes_namespace.sapio]
 }
 
 resource "kubernetes_deployment_v1" "sapio_app_deployment" {

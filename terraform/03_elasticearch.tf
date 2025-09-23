@@ -78,6 +78,7 @@ resource "kubernetes_secret_v1" "es_app_creds" {
     password = random_password.sapio_elasticsearch.result
   }
   type = "Opaque"
+  depends_on = [kubernetes_namespace.sapio]
 }
 
 # Job that waits for ES to be ready, then creates role and user
@@ -159,7 +160,7 @@ resource "kubernetes_job_v1" "es_bootstrap_permissions" {
     }
   }
 
-  depends_on = [helm_release.elasticsearch]
+  depends_on = [helm_release.elasticsearch, kubernetes_namespace.elasticsearch]
 }
 
 resource "kubernetes_network_policy_v1" "allow_sapio_to_es" {

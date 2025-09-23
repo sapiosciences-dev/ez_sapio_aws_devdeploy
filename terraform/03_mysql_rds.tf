@@ -130,6 +130,7 @@ resource "kubernetes_secret_v1" "mysql_root_creds" {
     password = random_password.sapio_mysql_root.result
   }
   type = "Opaque"
+  depends_on = [kubernetes_namespace.sapio]
 }
 
 # --- Primary (writer) MySQL 8.0 instance ---

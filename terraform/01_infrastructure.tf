@@ -114,7 +114,6 @@ module "eks" {
       enable_instance_refresh = false
 
       labels = {
-        "eks.amazonaws.com/compute-type" = "managed"
         "sapio/pool"                     = "sapio-bls"
       }
 
@@ -138,15 +137,6 @@ module "eks" {
   # completed. Therefore raising this from its default 30s 
   dataplane_wait_duration = "60s"
 }
-
-# CSI Driver. Probably not needed because auto-mode installs it?
-# resource "aws_eks_addon" "ebs_csi" {
-#   cluster_name             = module.eks.cluster_name
-#   addon_name               = "aws-ebs-csi-driver"
-#   resolve_conflicts_on_create = "OVERWRITE"
-#   resolve_conflicts_on_update = "OVERWRITE"
-#   depends_on               = [module.eks]
-# }
 
 locals {
   publish_security_group = module.eks.node_security_group_id
