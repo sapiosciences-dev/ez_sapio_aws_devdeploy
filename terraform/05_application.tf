@@ -538,7 +538,8 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
   # Give time for the cluster to complete (controllers, RBAC and IAM propagation)
   # See https://github.com/setheliot/eks_auto_mode/blob/main/docs/separate_configs.md
   depends_on = [module.eks, aws_db_instance.sapio_mysql, aws_db_instance.sapio_mysql_replica,
-    helm_release.elasticsearch, data.kubernetes_secret.es_http_tls, kubernetes_service_account_v1.sapio_account]
+    helm_release.elasticsearch, data.kubernetes_secret.es_http_tls, kubernetes_service_account_v1.sapio_account,
+    aws_eks_addon.vpc_cni]
 
 }
 
