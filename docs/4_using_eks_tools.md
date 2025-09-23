@@ -80,6 +80,7 @@ because the doc says it is unsafe to use in production.
 
 # Obtaining Secret Values
 You must have RBAC role permissions to read secrets from EKS in order to do this.
+(You can also view them in AWS EKS Console, if you have access)
 
 Use
 ```shell
@@ -91,4 +92,6 @@ For example
 kubectl -n sapio get secret mysql-root-user -o jsonpath='{.data}'
 # Elasticsearch App User Passwords
 kubectl -n sapio get secret es-app-user -o jsonpath='{.data}'
+# Elasticsearch Certificate Status
+kubectl -n elasticsearch get certificate es-http-cert -o yaml
 ```

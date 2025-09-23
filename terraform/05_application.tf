@@ -506,10 +506,10 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
         volume {
           name = "internal-ca"
           config_map {
-            name = "es-ca"        # created by your Helm chart in .Values.sapioNamespace
+            name = "ca-to-sapio"
             items {
               key  = "ca.crt"
-              path = "es-ca.crt"  # keep .crt suffix if your app expects it
+              path = "ca.crt"
             }
           }
         }

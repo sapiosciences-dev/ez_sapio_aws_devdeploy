@@ -15,6 +15,37 @@ locals {
   es_index_pattern         = "*"
 }
 
+resource "null_resource" "wait_for_es_http_cert" {
+  depends_on = [helm_release.cert_bootstrap]
+
+  provisioner "local-exec" {
+    # <- force bash instead of /bin/sh
+    interpreter = ["/bin/bash", "-c"]
+    command = <<-EOC
+      set -Eeuo pipefail
+      # Wait until cert-manager marks the Certificate Ready (this implies the Secret exists)
+      kubectl -n ${local.es_namespace} wait \
+        --for=condition=Ready --timeout=10m \
+        certificate/es-http-cert
+
+      # Sanity: ensure the TLS Secret is there
+      kubectl -n ${local.es_namespace} get secret es-http-tls >/dev/null
+    EOC
+  }
+}
+
+resource "kubernetes_config_map_v1" "es_cert_to_sapio" {
+  metadata {
+    name = "ca-to-sapio"
+    namespace = local.sapio_ns
+  }
+  data = {
+    # value is already PEM; no decoding/encoding
+    "ca.crt" = nonsensitive(data.kubernetes_secret.es_http_tls.data["ca.crt"])
+  }
+  depends_on = [null_resource.wait_for_es_http_cert, data.kubernetes_secret.es_http_tls]
+}
+
 resource "helm_release" "elasticsearch" {
   name             = local.es_release_name
   repository       = "https://helm.elastic.co"
@@ -66,8 +97,7 @@ resource "helm_release" "elasticsearch" {
     { name  = "nodeSelector.eks\\.amazonaws\\.com/compute-type", value = "auto" },
   ]
 
-
-  depends_on = [data.kubernetes_secret.es_http_tls, module.eks, kubernetes_storage_class.ebs_gp3 ]
+  depends_on = [null_resource.wait_for_es_http_cert, module.eks, kubernetes_storage_class.ebs_gp3 ]
 }
 
 # Secret with desired app password (namespace "elasticsearch" so Job can read it)
