@@ -88,7 +88,7 @@ module "eks" {
 
   # --- SELF-MANAGED NODE GROUP (disruption-averse) ---
   # This ASG is NOT managed by Auto Mode, so no 21-day rotation.
-  self_managed_node_groups = {
+  eks_managed_node_groups = {
     sapio_bls = {
       node_group_name = "sapio-bls"
       name       = "sapio-bls"
@@ -100,7 +100,8 @@ module "eks" {
       desired_size = 1
 
       # Use On-Demand capacity and a single instance type
-      instance_type = var.sapio_bls_instance_type
+      instance_types = [var.sapio_bls_instance_type]
+      capacity_type = "ON_DEMAND"
 
       # Use latest EKS-optimized AL2023 AMI (x86_64)
       ami_type = "AL2023_x86_64_STANDARD"
@@ -112,9 +113,14 @@ module "eks" {
       # Keep this group's desired size under your control (no instance refresh)
       enable_instance_refresh = false
 
-      # Make labels + taint authoritative at kubelet startup
-      # using normal label block would not work here since Karpenter will overwrite them
-      bootstrap_extra_args = "--kubelet-extra-args '--node-labels=eks.amazonaws.com/compute-type=self-managed,sapio/pool=sapio-bls"
+      labels = {
+        "eks.amazonaws.com/compute-type" = "managed"
+        "sapio/pool"                     = "sapio-bls"
+      }
+
+      update_config = {
+        max_unavailable = 1
+      }
     }
   }
 

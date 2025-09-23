@@ -77,3 +77,18 @@ This generally should be unnecessary but can be useful in dev.
 
 Note: we intentionally do not set "replace=true" in to terraform script, 
 because the doc says it is unsafe to use in production.
+
+# Obtaining Secret Values
+You must have RBAC role permissions to read secrets from EKS in order to do this.
+
+Use
+```shell
+kubectl -n <ns> get secret <secret-name> -o jsonpath='{.data}'
+```
+For example
+```shell
+# MySQL Root Passwords
+kubectl -n sapio get secret mysql-root-user -o jsonpath='{.data}'
+# Elasticsearch App User Passwords
+kubectl -n sapio get secret es-app-user -o jsonpath='{.data}'
+```
