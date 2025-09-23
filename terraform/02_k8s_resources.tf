@@ -6,13 +6,6 @@
 ##### "Logical order" refers to the order a human would think of these executions
 ##### (although Terraform will determine actual order executed)
 #
-
-# *** EKS Auto mode has its own EBS CSI driver ***
-# There is no need to install one
-
-# *** EKS Auto Mode takes care of IAM permissions ***
-# There is no need to attach AmazonEBSCSIDriverPolicy to the EKS Node IAM Role
-
 #
 # EBS Storage Class
 

@@ -1,3 +1,22 @@
+###############
+#
+# Self-Managed EKS Addons.
+#
+# Logical order: 02
+##### "Logical order" refers to the order a human would think of these executions
+##### (although Terraform will determine actual order executed)
+#
+# These addons are needed for minimum connectivity with the self-managed node that Sapio BLS runs on which
+# we can't shutdown the node without terminating service to end users.
+
+# ID Agent
+resource "aws_eks_addon" "pod_identity_agent" {
+  cluster_name      = module.eks.cluster_name
+  addon_name        = "eks-pod-identity-agent"
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "PRESERVE"
+}
+
 # VPC CNI
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name      = module.eks.cluster_name
@@ -17,6 +36,7 @@ resource "aws_eks_addon" "vpc_cni" {
       # ENABLE_POD_ENI         = "true"  # only if you plan SG-for-Pods
     }
   })
+  depends_on = [aws_eks_addon.pod_identity_agent]
 }
 
 # kube-proxy (managed by EKS, but good to pin/ensure present)
