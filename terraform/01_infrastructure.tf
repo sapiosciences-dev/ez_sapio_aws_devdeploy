@@ -122,6 +122,9 @@ module "eks" {
         "eks.amazonaws.com/compute-type" = "self-managed"
         "sapio/pool"                     = "sapio-bls"
       }
+
+    # Make labels + taint authoritative at kubelet startup
+    bootstrap_extra_args = "--kubelet-extra-args '--node-labels=eks.amazonaws.com/compute-type=self-managed,sapio/pool=sapio-bls --register-with-taints=sapio/scaling=pinned:NoSchedule'"
     }
   }
 

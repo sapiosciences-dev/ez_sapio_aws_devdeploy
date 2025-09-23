@@ -290,12 +290,6 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
         node_selector = {
           "sapio/pool" = "sapio-bls"
         }
-        toleration {
-          key = "spaio/scaling"
-          operator = "Equal"
-          value = "pinned"
-          effect = "NoSchedule"
-        }
         container {
           image = var.sapio_bls_docker_image
           name  = "${local.sapio_bls_app_name}-sapio-app-pod"
