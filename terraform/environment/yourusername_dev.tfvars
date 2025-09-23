@@ -21,7 +21,7 @@ es_cpu_request         = "1"
 es_memory_request      = "6Gi"
 es_cpu_limit           = "2"
 es_memory_limit        = "14Gi"
-es_storage_size       = "100Gi"
+es_storage_size       = "20Gi"
 
 ## MySQL Specs
 mysql_multi_az       = false

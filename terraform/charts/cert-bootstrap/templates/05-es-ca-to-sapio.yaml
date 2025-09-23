@@ -10,9 +10,9 @@ metadata:
     "helm.sh/hook-weight": "50"
 data:
   ca.crt: |
-    {{ index $src.data "tls.crt" | b64dec }}
+{{ index $src.data "tls.crt" | b64dec | nindent 4 }}
 {{- else }}
 {{- if and (not .Release.IsInstall) (.Values.failIfMissingCA | default false) }}
-{{ fail "Secret cert-manager/es-root-ca not found" }}
+{{- fail "Secret cert-manager/es-root-ca not found" }}
 {{- end }}
 {{- end }}
