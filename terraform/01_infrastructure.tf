@@ -91,7 +91,7 @@ module "eks" {
   self_managed_node_groups = {
     sapio_bls = {
       node_group_name = "sapio-bls"
-      name       = "${local.cluster_name}-sapio-bls"
+      name       = "sapio-bls"
       subnet_ids = module.vpc.private_subnets
 
       # Pin capacity to avoid any scale-in/scale-out churn
