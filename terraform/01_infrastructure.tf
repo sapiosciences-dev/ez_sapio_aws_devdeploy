@@ -90,7 +90,8 @@ module "eks" {
   # This ASG is NOT managed by Auto Mode, so no 21-day rotation.
   self_managed_node_groups = {
     sapio_bls = {
-      name       = "sapio-bls"
+      node_group_name = "sapio-bls"
+      name       = "${local.cluster_name}-sapio-bls"
       subnet_ids = module.vpc.private_subnets
 
       # Pin capacity to avoid any scale-in/scale-out churn
@@ -111,20 +112,9 @@ module "eks" {
       # Keep this group's desired size under your control (no instance refresh)
       enable_instance_refresh = false
 
-      # Optional: add a taint so only selected workloads land here
-      taints = [{
-        key    = "sapio/scaling"
-        value  = "pinned"
-        effect = "NO_SCHEDULE"
-      }]
-
-      labels = {
-        "eks.amazonaws.com/compute-type" = "self-managed"
-        "sapio/pool"                     = "sapio-bls"
-      }
-
-    # Make labels + taint authoritative at kubelet startup
-    bootstrap_extra_args = "--kubelet-extra-args '--node-labels=eks.amazonaws.com/compute-type=self-managed,sapio/pool=sapio-bls --register-with-taints=sapio/scaling=pinned:NoSchedule'"
+      # Make labels + taint authoritative at kubelet startup
+      # using normal label block would not work here since Karpenter will overwrite them
+      bootstrap_extra_args = "--kubelet-extra-args '--node-labels=eks.amazonaws.com/compute-type=self-managed,sapio/pool=sapio-bls"
     }
   }
 
