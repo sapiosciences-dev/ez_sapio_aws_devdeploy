@@ -118,6 +118,7 @@ module "eks" {
         "sapio/pool"                     = "sapio-bls"
       }
 
+
       update_config = {
         max_unavailable = 1
       }

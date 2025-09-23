@@ -17,13 +17,6 @@ resource "aws_eks_addon" "pod_identity_agent" {
   resolve_conflicts_on_update = "PRESERVE"
 }
 
-resource "aws_eks_addon" "ebs_csi_driver" {
-  cluster_name = module.eks.cluster_name
-  addon_name   = "aws-ebs-csi-driver"
-  resolve_conflicts_on_create = "OVERWRITE"
-  resolve_conflicts_on_update = "PRESERVE"
-}
-
 # VPC CNI
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name      = module.eks.cluster_name
