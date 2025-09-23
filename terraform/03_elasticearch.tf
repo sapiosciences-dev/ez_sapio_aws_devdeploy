@@ -61,6 +61,9 @@ resource "helm_release" "elasticsearch" {
     { name = "secretMounts[0].name", value = "http-certs" },
     { name = "secretMounts[0].secretName", value = "es-http-tls" },
     { name = "secretMounts[0].path", value = "/usr/share/elasticsearch/config/http-certs" },
+
+    # --- Ensure it only resides in auto mode clusters.
+    { name  = "nodeSelector.eks\\.amazonaws\\.com/compute-type", value = "auto" },
   ]
 
 

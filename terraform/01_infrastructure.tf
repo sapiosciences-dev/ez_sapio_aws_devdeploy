@@ -283,7 +283,11 @@ resource "helm_release" "cert_manager" {
   wait             = true
   atomic           = true          # roll back on failure
   cleanup_on_fail  = true
-  set = [{ name = "installCRDs", value = "true" }]
+  set = [
+    { name = "installCRDs", value = "true" },
+    # --- Ensure it only resides in auto mode clusters.
+    { name  = "nodeSelector.eks\\.amazonaws\\.com/compute-type", value = "auto" },
+  ]
   depends_on = [module.eks, kubernetes_namespace.elasticsearch,
     kubernetes_namespace.sapio, kubernetes_namespace.sapio_analytic_server]
 }
@@ -301,7 +305,9 @@ resource "helm_release" "cert_bootstrap" {
     { name = "esNamespace",      value = local.es_namespace },
     { name = "esHttpSecretName", value = "es-http-tls" },
     # elastic/elasticsearch chart’s HTTP Service is typically "<release>-master"
-    { name = "esServiceName",    value = "${local.es_release_name}-master" }
+    { name = "esServiceName",    value = "${local.es_release_name}-master" },
+    # --- Ensure it only resides in auto mode clusters.
+    { name  = "nodeSelector.eks\\.amazonaws\\.com/compute-type", value = "auto" },
   ]
 
   depends_on = [helm_release.cert_manager]

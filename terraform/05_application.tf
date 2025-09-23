@@ -58,7 +58,9 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
         }
       }
       spec {
-
+        node_selector = {
+          "eks.amazonaws.com/compute-type" = "auto"
+        }
         service_account_name = local.app_serviceaccount
 
         container {
