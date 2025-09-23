@@ -549,6 +549,8 @@ resource "kubernetes_service_v1" "sapio_bls_nlb" {
     namespace = local.sapio_ns
     labels    = { app = local.sapio_bls_app_name }
     annotations = {
+      "service.beta.kubernetes.io/aws-load-balancer-scheme"          = "internet-facing"
+
       # Tell AWS LB Controller to create an NLB and target pod IPs directly
       "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type" = "ip"
       "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
