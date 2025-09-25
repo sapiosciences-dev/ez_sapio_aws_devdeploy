@@ -48,6 +48,26 @@ resource "kubectl_manifest" "elasticsearch_eck" {
     }
     spec = {
       version  = var.es_version
+      http = {
+        tls = {
+          selfSignedCertificate = {
+            subjectAltNames = [
+              # cluster-internal service DNS variants (cover them all)
+              { dns = "${local.es_release_name}-es-http" },
+              { dns = "${local.es_release_name}-es-http.${local.es_namespace}" },
+              { dns = "${local.es_release_name}-es-http.${local.es_namespace}.svc" },
+              { dns = "${local.es_release_name}-es-http.${local.es_namespace}.svc.cluster.local" },
+
+              # YQ: Elasticsearch is only need to be exposed internally in cluster for default OOB use cases.
+              # If you expose via a Service of type=LoadBalancer with a cloud DNS name:
+              # { dns = "a1234567890abcdef.us-east-1.elb.amazonaws.com" },
+
+              # If you use an ingress/your own DNS:
+              # { dns = "es.mycorp.example.com" }
+            ]
+          }
+        }
+      }
       nodeSets = [
         {
           name  = "masters"
@@ -70,6 +90,7 @@ resource "kubectl_manifest" "elasticsearch_eck" {
           ]
           podTemplate = {
             spec = {
+              terminationGracePeriodSeconds = 30
               nodeSelector = {
                 "eks.amazonaws.com/compute-type" = "auto"
               }
@@ -110,6 +131,7 @@ resource "kubectl_manifest" "elasticsearch_eck" {
             }
           ]
           podTemplate = {
+            terminationGracePeriodSeconds = 30
             spec = {
               nodeSelector = {
                 "eks.amazonaws.com/compute-type" = "auto"
@@ -180,7 +202,7 @@ resource "kubernetes_job_v1" "es_bootstrap_app_user" {
           image   = "curlimages/curl:8.10.1"
           command = ["/bin/sh","-c"]
           args = [<<-SCRIPT
-            set -Eeuo pipefail
+                  set -Eeuo pipefail
             # show each command as it runs
             set -x
 
@@ -369,7 +391,7 @@ resource "null_resource" "wait_for_es_ca" {
   }
   provisioner "local-exec" {
     command = <<-EOT
-      set -e
+            set -e
       for i in $(seq 1 120); do
         if kubectl get secret ${local.es_release_name}-es-http-ca-internal -n ${local.es_namespace} >/dev/null 2>&1; then
           exit 0
