@@ -55,6 +55,8 @@ resource "kubectl_manifest" "elasticsearch_eck" {
           config = {
             "node.roles" = ["master"]
             "node.store.allow_mmap" = false
+            "http.bind_host"        = "0.0.0.0"
+            "http.publish_host"     = "$${POD_IP}"
           }
           volumeClaimTemplates = [
             {
@@ -94,6 +96,8 @@ resource "kubectl_manifest" "elasticsearch_eck" {
           config = {
             "node.roles" = ["data_hot", "ingest"]
             "node.store.allow_mmap" = false
+            "http.bind_host"        = "0.0.0.0"
+            "http.publish_host"     = "$${POD_IP}"
           }
           volumeClaimTemplates = [
             {
