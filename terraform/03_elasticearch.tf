@@ -37,6 +37,7 @@ resource "helm_release" "eck_operator" {
 }
 
 # ECK creates TLS + the `elastic` user secret automatically for this CR
+# YQ: It's imperfect to use kubectl_manifest which may have a timedout token. Might want to revisit this later turn it to custom HELM.
 resource "kubectl_manifest" "elasticsearch_eck" {
   yaml_body = yamlencode({
     apiVersion = "elasticsearch.k8s.elastic.co/v1"
@@ -130,7 +131,10 @@ resource "kubectl_manifest" "elasticsearch_eck" {
     }
   })
 
-  depends_on = [helm_release.eck_operator, kubernetes_storage_class.ebs_gp3]
+  depends_on = [helm_release.eck_operator, kubernetes_storage_class.ebs_gp3, kubernetes_namespace.elasticsearch]
+  timeouts {
+    create = "60m"
+  }
 }
 
 

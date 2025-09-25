@@ -14,8 +14,8 @@ terraform {
       version = ">= 3.0.0"
     }
     kubectl = {
-      source  = "gavinbunney/kubectl"
-      version = "~> 1.19"
+      source  = "alekc/kubectl"
+      version = "~> 2.1.3"
     }
   }
   # There is a deployment bug with more recent versions of Terraform
@@ -65,8 +65,18 @@ provider "kubernetes" {
 provider "kubectl" {
   host                   = module.eks.cluster_endpoint
   cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-  token = data.aws_eks_cluster_auth.cluster_auth.token
+  # token = data.aws_eks_cluster_auth.cluster_auth.token
   load_config_file       = false
+
+  exec {
+    api_version = "client.authentication.k8s.io/v1"
+    command     = "aws"
+    args        = [
+      "eks", "get-token",
+      "--cluster-name", module.eks.cluster_name,
+      "--region", var.aws_region
+    ]
+  }
 }
 # Helm provider pointed at the same cluster
 provider "helm" {

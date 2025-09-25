@@ -101,3 +101,12 @@ kubectl -n sapio get secret es-app-user -o jsonpath='{.data}'
 # Elasticsearch Certificate Status
 kubectl -n elasticsearch get certificate es-http-cert -o yaml
 ```
+
+# Force Destroy Pod
+If you are trying to kill a EKS cluster and EKS cluster pod termination is failing, you can use:
+```shell
+ kubectl delete pod <pod_name> -n <namespace> --force --grace-period=0
+```
+
+Generally this command should only be used in devops when developing for custom deployment changes to pods.
+The configuration will not be easily recovered.

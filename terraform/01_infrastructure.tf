@@ -269,4 +269,7 @@ resource "kubernetes_namespace" "elasticsearch" {
     name = local.es_namespace
   }
   depends_on = [module.eks]
+  timeouts {
+    delete = "30m"
+  }
 }
