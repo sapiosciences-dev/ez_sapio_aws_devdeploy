@@ -6,6 +6,12 @@ All of these should be done within the disposable Admin EC2.
 ```shell
 aws eks update-kubeconfig --region <aws-region> --name <aws-cluster-name>
 ```
+
+For Example:
+```shell
+aws eks update-kubeconfig --region us-east-1 --name ekssapio-dev-cluster
+```
+
 This will get your EKS configuration to set up to ekssapio-dev-cluster.
 To find the cluster name, go to your region's AWS console and go to EKS.
 The Cluster name should be the title of each cluster in the clusters table.
@@ -31,7 +37,7 @@ This command will get all namespaced events.
 You will then be able to see deployment error logs in the namespace.
 
 ```shell
-kubectl -n <namespace> get events --sort-by='.lastTimestamp'
+kubectl get events --sort-by='.lastTimestamp' -n <namespace>
 ```
 This command will sort the events by time.
 

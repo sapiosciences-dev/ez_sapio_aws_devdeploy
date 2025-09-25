@@ -113,6 +113,23 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
             initial_delay_seconds = 30
             period_seconds        = 10
           }
+
+          #volume
+          volume_mount {
+            name       = "internal-ca"
+            mount_path = "/certificates"
+            read_only  = true
+          }
+        } # container
+        volume {
+          name = "internal-ca"
+          config_map {
+            name = local.ca_cm_name
+            items {
+              key  = "ca.crt"
+              path = "ca.crt"
+            }
+          }
         }
 
         # Spread across zones/nodes for resilience
@@ -128,7 +145,7 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
     }
   }
 
-  depends_on = [kubernetes_service_account_v1.analytic_server_account]
+  depends_on = [kubernetes_service_account_v1.analytic_server_account, kubernetes_job_v1.sync_es_ca_to_targets]
 }
 
 #############################################
@@ -344,14 +361,14 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
             value = "https://elasticsearch-master.${local.es_namespace}.svc:9200"
           }
           env {
-            name  = "ES_USERNAME"
+            name  = "ES_USER"
             value = local.es_app_user
           }
           env {
-            name = "ES_PASSWORD"
+            name = "ES_PASS"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret_v1.es_app_creds.metadata[0].name
+                name = local.es_app_secret_name
                 key  = "password"
               }
             }
@@ -489,12 +506,13 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
             name  = "USE_SYSTEM_CA_CERTS"
             value = "1"
           }
+
+          #volume
           # Mount the PVC as a volume in the container
           volume_mount {
             name       = "ebs-k8s-attached-storage"
             mount_path = "/data" # Not sure what data we want to push if the license file is in the container as SERVER_LICENSE base64 env.
           }
-          #volume
           volume_mount {
             name       = "internal-ca"
             mount_path = "/certificates"
@@ -506,7 +524,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
         volume {
           name = "internal-ca"
           config_map {
-            name = "ca-to-sapio"
+            name = local.ca_cm_name
             items {
               key  = "ca.crt"
               path = "ca.crt"
@@ -536,8 +554,8 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
   # Give time for the cluster to complete (controllers, RBAC and IAM propagation)
   # See https://github.com/setheliot/eks_auto_mode/blob/main/docs/separate_configs.md
   depends_on = [module.eks, aws_db_instance.sapio_mysql, aws_db_instance.sapio_mysql_replica,
-    helm_release.elasticsearch, data.kubernetes_secret.es_http_tls, kubernetes_service_account_v1.sapio_account,
-    aws_eks_addon.vpc_cni]
+    helm_release.elasticsearch, kubernetes_service_account_v1.sapio_account,
+    aws_eks_addon.vpc_cni, kubernetes_job_v1.sync_es_ca_to_targets]
 
 }
 
@@ -545,7 +563,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
 resource "kubernetes_service_v1" "sapio_bls_nlb" {
   wait_for_load_balancer = true
   metadata {
-    name      = "${local.sapio_bls_app_name}-ext"
+    name      = "${local.sapio_bls_app_name}-bls-gate"
     namespace = local.sapio_ns
     labels    = { app = local.sapio_bls_app_name }
     annotations = {

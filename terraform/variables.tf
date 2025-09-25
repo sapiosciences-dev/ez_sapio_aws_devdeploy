@@ -199,3 +199,4 @@ variable "bls_server_temp_storage_size" {
   type        = string
   default     = "20Gi"
 }
+
