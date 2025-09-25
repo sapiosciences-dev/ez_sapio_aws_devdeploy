@@ -123,11 +123,11 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
         } # container
         volume {
           name = "internal-ca"
-          config_map {
-            name = local.ca_cm_name
+          secret {
+            secret_name = "es-ca"     # created per-namespace above
             items {
               key  = "ca.crt"
-              path = "ca.crt"
+              path = "ca.crt"         # keep .crt extension
             }
           }
         }
@@ -145,7 +145,7 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
     }
   }
 
-  depends_on = [kubernetes_service_account_v1.analytic_server_account, kubernetes_job_v1.sync_es_ca_to_targets]
+  depends_on = [kubernetes_service_account_v1.analytic_server_account, kubernetes_secret_v1.es_ca_for_as]
 }
 
 #############################################
@@ -520,15 +520,15 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           }
         }
         #container
-
         volume {
           name = "internal-ca"
-          config_map {
-            name = local.ca_cm_name
+          secret {
+            secret_name = "es-ca"     # created per-namespace above
             items {
               key  = "ca.crt"
-              path = "ca.crt"
+              path = "ca.crt"         # keep .crt extension
             }
+            # optional = false        # default; add if you want to be explicit
           }
         }
         # Define the volume using the PVC
@@ -554,8 +554,8 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
   # Give time for the cluster to complete (controllers, RBAC and IAM propagation)
   # See https://github.com/setheliot/eks_auto_mode/blob/main/docs/separate_configs.md
   depends_on = [module.eks, aws_db_instance.sapio_mysql, aws_db_instance.sapio_mysql_replica,
-    helm_release.elasticsearch, kubernetes_service_account_v1.sapio_account,
-    aws_eks_addon.vpc_cni, kubernetes_job_v1.sync_es_ca_to_targets]
+    kubernetes_job_v1.es_bootstrap_app_user, kubernetes_service_account_v1.sapio_account,
+    aws_eks_addon.vpc_cni, kubernetes_secret_v1.es_ca_for_sapio]
 
 }
 

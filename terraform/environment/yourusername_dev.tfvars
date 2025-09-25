@@ -15,13 +15,14 @@ eks_cluster_version = "1.33"
 
 # Hardware Spec Under Environment.
 ## Elasticsearch Specs
+es_version = "7.17.12" # Sapio may require a particular version.
 es_num_desired_masters = 1
-es_num_min_masters     = 1
+es_num_desired_datas     = 1
 es_cpu_request         = "1"
-es_memory_request      = "6Gi"
 es_cpu_limit           = "2"
 es_memory_limit        = "14Gi"
-es_storage_size       = "20Gi"
+es_master_storage_size       = "50Gi"
+es_data_storage_size =  "50Gi"
 
 ## MySQL Specs
 mysql_multi_az       = false

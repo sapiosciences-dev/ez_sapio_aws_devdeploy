@@ -30,7 +30,6 @@ variable app1_name {
   type        = string
   nullable = false
 }
-
 variable "env_name" {
   description = "Unique identifier for tfvars configuration used"
   type        = string
@@ -43,11 +42,18 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
+# Elasticsearch version
+variable "es_version" {
+  description = "The elasticsearch version to deploy to cluster"
+  type = string
+  nullable = false
+}
+
 # EKS version
 variable "eks_cluster_version" {
   description = "EKS version"
   type        = string
-  default     = "1.32"
+  default     = "1.33"
 }
 
 # Hardware Specs
@@ -56,20 +62,15 @@ variable "es_num_desired_masters"{
   type        = number
   default     = 3
 }
-variable "es_num_min_masters"{
-  description = "Minimum number of Elasticsearch master nodes"
+variable "es_num_desired_datas"{
+  description = "Desired number of Elasticsearch data nodes"
   type        = number
   default     = 2
 }
 variable "es_cpu_request"{
-  description = "CPU request for Elasticsearch master nodes"
+  description = "CPU request for Elasticsearch nodes"
   type        = string
   default     = "1"
-}
-variable "es_memory_request"{
-  description = "Memory request for Elasticsearch master nodes"
-  type        = string
-  default     = "8Gi"
 }
 variable "es_cpu_limit" {
   description = "CPU limit for Elasticsearch master nodes"
@@ -81,10 +82,15 @@ variable "es_memory_limit" {
   type        = string
   default     = "16Gi"
 }
-variable "es_storage_size" {
-  description = "Storage size for Elasticsearch master nodes"
+variable "es_master_storage_size" {
+  description = "Storage size for Elasticsearch master nodes, per master node"
   type        = string
-  default     = "100Gi"
+  default     = "200Gi"
+}
+variable "es_data_storage_size" {
+  description = "Storage size for Elasticsearch data nodes, per data node"
+  type = string
+  default = "500Gi"
 }
 # MySQL RDS variables
 variable "mysql_multi_az" {

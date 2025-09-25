@@ -13,6 +13,10 @@ terraform {
       source  = "hashicorp/helm"
       version = ">= 3.0.0"
     }
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = "~> 1.19"
+    }
   }
   # There is a deployment bug with more recent versions of Terraform
   # See: https://github.com/hashicorp/terraform-provider-kubernetes/issues/2779
@@ -21,6 +25,7 @@ terraform {
 provider "aws" {
   region = var.aws_region
 }
+
 
 data "aws_caller_identity" "current" {}
 
@@ -58,11 +63,26 @@ provider "kubernetes" {
     args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name, "--region", var.aws_region]
   }
 }
+provider "kubectl" {
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+  token = data.aws_eks_cluster_auth.cluster_auth.token
+  load_config_file       = false
+}
 # Helm provider pointed at the same cluster
 provider "helm" {
   kubernetes = {
-    host  = module.eks.cluster_endpoint
+    host                   = module.eks.cluster_endpoint
     cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-    token = data.aws_eks_cluster_auth.cluster_auth.token
+
+    exec = {
+      api_version = "client.authentication.k8s.io/v1"
+      command     = "aws"
+      args        = [
+        "eks", "get-token",
+        "--cluster-name", module.eks.cluster_name,
+        "--region", var.aws_region
+      ]
+    }
   }
 }

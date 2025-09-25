@@ -20,132 +20,122 @@ locals {
   es_release_name          = "elasticsearch"
   es_app_user              = "sapio_app"
   es_index_pattern         = "*"
-}
 
-resource "kubernetes_job_v1" "wait_for_es_http_cert" {
-  metadata {
-    name      = "wait-for-es-http-cert"
-    namespace = local.es_namespace
-  }
-  spec {
-    backoff_limit = 0
-    # ttl_seconds_after_finished = 300  # optional GC if your cluster supports it
-    template {
-      metadata { labels = { job = "wait-for-es-http-cert" } }
-      spec {
-        restart_policy = "OnFailure"
-
-        container {
-          name    = "gate"
-          image   = "alpine:3.20"
-          command = ["/bin/sh","-c"]
-          args    = [<<-EOS
-            set -euo pipefail
-            # If this runs, the secret volume mounted => certificate secret exists.
-            echo "es-http-tls mounted; listing contents:"
-            ls -l /tls
-            # sanity check (typical key for TLS secrets)
-            test -s /tls/tls.crt
-            echo "Certificate Ready. Proceeding."
-          EOS
-          ]
-          volume_mount {
-            name       = "es-tls"
-            mount_path = "/tls"
-            read_only  = true
-          }
-        }
-
-        volume {
-          name = "es-tls"
-          secret {
-            secret_name = "es-http-tls"  # created when Certificate becomes Ready
-          }
-        }
-      }
-    }
-  }
-
-  depends_on = [helm_release.cert_bootstrap]
-}
-
-# do not modify after deploy, chart drifts kills elasticsearch.
-resource "helm_release" "elasticsearch" {
-  name             = local.es_release_name
-  repository       = "https://helm.elastic.co"
-  chart            = "elasticsearch"
-  namespace        = local.es_namespace
-  create_namespace = true
-  version          = "8.5.1"
-
-  wait             = true
-  atomic           = true
-  cleanup_on_fail  = true
-  reuse_values   = true # avoid chart drift.
-
-  # Prefer fewer, more stable value injections:
-  values = [yamlencode({
-    # DEBUG ONLY, allow me to get into bash and find out what's wrong.
-    livenessProbe = {
-      initialDelaySeconds = 60000
-      periodSeconds       = 20000
-      timeoutSeconds      = 50000
-      failureThreshold    = 10
-    }
-    readinessProbe = {
-      initialDelaySeconds = 300000
-      periodSeconds       = 100000
-      timeoutSeconds      = 500000
-      failureThreshold    = 12
-    }
-
-    replicas                  = var.es_num_desired_masters
-    minimumMasterNodes        = var.es_num_min_masters
-    resources = {
-      requests = { cpu = var.es_cpu_request,  memory = var.es_memory_request }
-      limits   = { cpu = var.es_cpu_limit,    memory = var.es_memory_limit }
-    }
-    volumeClaimTemplate = {
-      storageClassName   = "ebs-storage-class"
-      resources = {
-        requests = { storage = var.es_storage_size }
-      }
-    }
-    esConfig = {
-      "elasticsearch.yml" = <<-EOT
-        node.store.allow_mmap: false
-        xpack.security.enabled: true
-        xpack.security.http.ssl.enabled: true
-        xpack.security.http.ssl.certificate: /usr/share/elasticsearch/config/http-certs/tls.crt
-        xpack.security.http.ssl.key: /usr/share/elasticsearch/config/http-certs/tls.key
-        xpack.security.http.ssl.certificate_authorities:
-          - /usr/share/elasticsearch/config/http-certs/ca.crt
-      EOT
-    }
-    protocol = "https"
-    secretMounts = [{
-      name       = "http-certs"
-      secretName = "es-http-tls"
-      path       = "/usr/share/elasticsearch/config/http-certs"
-    }]
-    nodeSelector = {
-      "eks.amazonaws.com/compute-type" = "auto"
-    }
-  })]
-
-  # Put the secret into set_sensitive to avoid noisy diffs, avoid unnecessary chart drifts.
-  set_sensitive = [{
-    name  = "secret.password"
-    value = random_password.es_root.result
-  }]
-
-  depends_on = [kubernetes_job_v1.wait_for_es_http_cert, module.eks, kubernetes_storage_class.ebs_gp3 ]
-}
-
-locals {
   es_app_secret_name       = "es-app-user"
   es_app_secret_namespaces = toset([local.es_namespace, local.sapio_ns])
 }
+
+# ECK Operator, not elasticsearch.
+resource "kubernetes_namespace_v1" "elastic_system" {
+  metadata { name = "elastic-system" }
+}
+
+resource "helm_release" "eck_operator" {
+  name             = "eck-operator"
+  repository       = "https://helm.elastic.co"
+  chart            = "eck-operator"
+  version          = "3.1.0"       # check doc/site for newer
+  namespace        = kubernetes_namespace_v1.elastic_system.metadata[0].name
+  create_namespace = false
+  wait             = true
+}
+
+# ECK creates TLS + the `elastic` user secret automatically for this CR
+resource "kubectl_manifest" "elasticsearch_eck" {
+  yaml_body = yamlencode({
+    apiVersion = "elasticsearch.k8s.elastic.co/v1"
+    kind       = "Elasticsearch"
+    metadata   = {
+      name      = local.es_release_name
+      namespace = local.es_namespace
+    }
+    spec = {
+      version  = var.es_version
+      nodeSets = [
+        {
+          name  = "masters"
+          count = var.es_num_desired_masters
+          config = {
+            "node.roles" = ["master"]
+          }
+          volumeClaimTemplates = [
+            {
+              metadata = { name = "elasticsearch-data" }
+              spec = {
+                storageClassName = "gp3"
+                accessModes      = ["ReadWriteOnce"]
+                resources        = { requests = { storage = var.es_master_storage_size } }
+              }
+            }
+          ]
+          podTemplate = {
+            spec = {
+              nodeSelector = {
+                "eks.amazonaws.com/compute-type" = "auto"
+              }
+
+              containers = [{
+                name  = "elasticsearch"
+                resources = {
+                  requests = {
+                    cpu                = var.es_cpu_request
+                    memory             = var.es_memory_limit
+                  }
+                  limits = {
+                    cpu = var.es_cpu_limit
+                    memory = var.es_memory_limit
+                  }
+                }
+              }]
+            }
+          }
+        },
+        {
+          name  = "data"
+          count = var.es_num_desired_datas
+          config = {
+            "node.roles" = ["data_hot", "ingest"]
+          }
+          volumeClaimTemplates = [
+            {
+              metadata = { name = "elasticsearch-data" }
+              spec = {
+                storageClassName = "gp3"
+                accessModes      = ["ReadWriteOnce"]
+                resources        = { requests = { storage = var.es_data_storage_size } }
+              }
+            }
+          ]
+          podTemplate = {
+            spec = {
+              nodeSelector = {
+                "eks.amazonaws.com/compute-type" = "auto"
+              }
+
+              containers = [{
+                name  = "elasticsearch"
+                resources = {
+                  requests = {
+                    cpu                = var.es_cpu_request
+                    memory             = var.es_memory_limit
+                  }
+                  limits = {
+                    cpu = var.es_cpu_limit
+                    memory = var.es_memory_limit
+                  }
+                }
+              }]
+            }
+          }
+        }
+      ]
+    }
+  })
+
+  depends_on = [helm_release.eck_operator]
+}
+
+
 
 # Secret with desired app password (namespace "elasticsearch" and "sapio" so sapio app and bootstrap script that creates user below can both read it)
 resource "kubernetes_secret_v1" "es_app_creds" {
@@ -164,82 +154,81 @@ resource "kubernetes_secret_v1" "es_app_creds" {
 }
 
 # Job that waits for ES to be ready, then creates role and user
-resource "kubernetes_job_v1" "es_bootstrap_permissions" {
+resource "kubernetes_job_v1" "es_bootstrap_app_user" {
   metadata {
-    name      = "es-bootstrap-perms"
+    name      = "es-bootstrap-app-user"
     namespace = local.es_namespace
   }
   spec {
     backoff_limit = 4
     template {
-      metadata { labels = { job = "es-bootstrap-perms" } }
+      metadata { labels = { job = "es-bootstrap-app-user" } }
       spec {
-        node_selector = { "eks.amazonaws.com/compute-type" = "auto" }
         restart_policy = "OnFailure"
-
         container {
-          name  = "bootstrap"
-          image = "curlimages/curl:8.10.1"
+          name    = "bootstrap"
+          image   = "curlimages/curl:8.10.1"
           command = ["/bin/sh","-c"]
           args = [<<-SCRIPT
             set -euo pipefail
-            svc="elasticsearch-master.${local.es_namespace}.svc"
-            base="https://$svc:9200"
+            ns="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
+            base="https://$ES_SERVICE.$ns.svc:9200"
+
             auth_user="elastic:$(cat /elastic/elastic_pw)"
-            app_user="${local.es_app_user}"
+            app_user="$APP_USER"
+            app_pw="$(cat /app/user_pw)"
             cacert="/ca/ca.crt"
 
-            curl_json() { # usage: METHOD URL [JSON]
-              method="$1"; url="$2"; data="$3"
-              if [ -n "$data" ]; then
-                curl -sS --fail --cacert "$cacert" -u "$auth_user" \
-                  -H 'Content-Type: application/json' -X "$method" "$url" -d "$data"
-              else
-                curl -sS --fail --cacert "$cacert" -u "$auth_user" \
-                  -H 'Content-Type: application/json' -X "$method" "$url"
-              fi
-            }
+            http() { curl -sS --fail --cacert "$cacert" -u "$auth_user" -H 'Content-Type: application/json' "$@"; }
+            code() { curl -sS -o /dev/null -w "%%{http_code}" --cacert "$cacert" -u "$auth_user" -H 'Content-Type: application/json' "$@"; }
 
-            http_code() { # usage: METHOD URL
-              curl -sS -o /dev/null -w "%http_code" --cacert "$cacert" \
-                   -u "$auth_user" -H 'Content-Type: application/json' -X "$1" "$2"
-            }
-
-            # Wait for security to respond over HTTPS
+            # Wait for security endpoint
             for i in $(seq 1 120); do
-              code=$(http_code GET "$base/_security/_authenticate") || true
-              [ "$code" = "200" ] && break
+              c="$(code -XGET "$base/_security/_authenticate")" || true
+              [ "$c" = "200" ] && break
               sleep 5
             done
-            [ "$code" = "200" ] || { echo "Elasticsearch not ready (code=$code)"; exit 1; }
+            [ "$c" = "200" ] || { echo "Elasticsearch not ready (code=$c)"; exit 1; }
 
-            # Upsert role
-            curl_json PUT "$base/_security/role/app_writer" '{
-              "cluster": ["monitor"],
-              "indices": [{
-                "names": ["${local.es_index_pattern}"],
-                "privileges": ["create_index","write","create","index","read","view_index_metadata"]
+            # Upsert role (uses ES_INDEX_PATTERN)
+            http -XPUT "$base/_security/role/app_writer" -d "{
+              \"cluster\": [\"monitor\"],
+              \"indices\": [{
+                \"names\": [\"$ES_INDEX_PATTERN\"],
+                \"privileges\": [\"create_index\",\"write\",\"create\",\"index\",\"read\",\"view_index_metadata\"]
               }]
-            }' >/dev/null
+            }" >/dev/null
 
             # Create/Update user idempotently
-            user_code=$(http_code GET "$base/_security/user/$app_user") || true
-            if [ "$user_code" = "200" ]; then
-              curl_json PUT "$base/_security/user/$app_user" '{"roles":["app_writer"]}' >/dev/null
-            elif [ "$user_code" = "404" ]; then
-              pw="$(cat /app/user_pw)"
-              curl_json PUT "$base/_security/user/$app_user" "{\"password\":\"$pw\",\"roles\":[\"app_writer\"]}" >/dev/null
+            ucode="$(code -XGET "$base/_security/user/$app_user")" || true
+            if [ "$ucode" = "200" ]; then
+              http -XPUT "$base/_security/user/$app_user" -d '{"roles":["app_writer"]}' >/dev/null
+            elif [ "$ucode" = "404" ]; then
+              http -XPUT "$base/_security/user/$app_user" -d "{\"password\":\"$app_pw\",\"roles\":[\"app_writer\"]}" >/dev/null
             else
-              echo "Unexpected user check ($user_code). Letting backoff retry."
-              exit 1
+              echo "Unexpected user check ($ucode)"; exit 1
             fi
 
             echo "Bootstrap complete."
           SCRIPT
           ]
 
+          # pass locals via env (so the script can use $VAR)
+          env {
+            name = "APP_USER"
+            value = local.es_app_user
+          }
+          env {
+            name = "ES_INDEX_PATTERN"
+            value = local.es_index_pattern
+          }
+          env {
+            name = "ES_SERVICE"
+            value = "${local.es_release_name}-es-http"
+          }
+
           volume_mount {
-            name = "elastic-creds"
+            name = "elastic-user"
             mount_path = "/elastic"
             read_only = true
           }
@@ -255,38 +244,38 @@ resource "kubernetes_job_v1" "es_bootstrap_permissions" {
           }
         }
 
-        # Elastic built-in credentials (elastic user)
+        # Secrets from ECK (names derived from the CR name)
         volume {
-          name = "elastic-creds"
+          name = "elastic-user"
           secret {
-            secret_name = "elasticsearch-master-credentials"
+            secret_name = "${local.es_release_name}-es-elastic-user"
             items {
-              key = "password"
+              key = "elastic"
               path = "elastic_pw"
             }
+            optional    = true
+          }
+        }
+        volume {
+          name = "http-ca"
+          secret {
+            secret_name = "${local.es_release_name}-es-http-certs-public"
+            items {
+              key = "ca.crt"
+              path = "ca.crt"
+            }
+            optional    = true
           }
         }
 
-        # Your application user's password
+        # Your app password Secret that you manage (opaque, contains key "user_pw")
         volume {
           name = "app-creds"
           secret {
             secret_name = local.es_app_secret_name
             items {
-              key = "password"
+              key = "user_pw"
               path = "user_pw"
-            }
-          }
-        }
-
-        # Mount the ES HTTP CA (reuse the same secret that the ES pods use for HTTP)
-        volume {
-          name = "http-ca"
-          secret {
-            secret_name = "es-http-tls"      # <- contains ca.crt
-            items {
-              key = "ca.crt"
-              path = "ca.crt"
             }
           }
         }
@@ -294,11 +283,7 @@ resource "kubernetes_job_v1" "es_bootstrap_permissions" {
     }
   }
 
-  depends_on = [
-    helm_release.elasticsearch,
-    kubernetes_namespace.elasticsearch,
-    kubernetes_secret_v1.es_app_creds
-  ]
+  depends_on = [kubectl_manifest.elasticsearch_eck]
 }
 
 resource "kubernetes_network_policy_v1" "allow_sapio_to_es" {
@@ -316,12 +301,11 @@ resource "kubernetes_network_policy_v1" "allow_sapio_to_es" {
     ingress {
       from {
         namespace_selector {
-          match_labels = { kubernetes_io_metadata_name = "default" }
-        }
-        pod_selector {
-          match_labels = {
-            namespace = "sapio"
-          } # matches your Deployment labels
+          match_expressions {
+            key      = "kubernetes.io/metadata.name"
+            operator = "In"
+            values   = [local.sapio_ns, local.analytic_server_ns]
+          }
         }
       }
       ports {
@@ -330,6 +314,52 @@ resource "kubernetes_network_policy_v1" "allow_sapio_to_es" {
       }
     }
   }
-  depends_on = [helm_release.elasticsearch, kubernetes_namespace.elasticsearch]
+  depends_on = [kubernetes_namespace.elasticsearch]
 }
 
+# Wait until the CA secret exists
+resource "null_resource" "wait_for_es_ca" {
+  triggers = {
+    es_name = local.es_release_name
+    ns      = local.es_namespace
+  }
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -e
+      for i in $(seq 1 120); do
+        if kubectl get secret ${local.es_release_name}-es-http-ca-internal -n ${local.es_namespace} >/dev/null 2>&1; then
+          exit 0
+        fi
+        sleep 5
+      done
+      echo "Timed out waiting for ES CA secret"; exit 1
+    EOT
+  }
+  depends_on = [kubectl_manifest.elasticsearch_eck]
+}
+
+data "kubernetes_secret" "es_http_ca" {
+  metadata {
+    name      = "${local.es_release_name}-es-http-certs-public"
+    namespace = local.es_namespace
+  }
+  depends_on = [null_resource.wait_for_es_ca]
+}
+
+resource "kubernetes_secret_v1" "es_ca_for_sapio" {
+  metadata {
+    name = "es-ca"
+    namespace = local.sapio_ns
+  }
+  type = "Opaque"
+  data = { "ca.crt" = data.kubernetes_secret.es_http_ca.data["ca.crt"] }
+}
+
+resource "kubernetes_secret_v1" "es_ca_for_as" {
+  metadata {
+    name = "es-ca"
+    namespace = local.analytic_server_ns
+  }
+  type = "Opaque"
+  data = { "ca.crt" = data.kubernetes_secret.es_http_ca.data["ca.crt"] }
+}

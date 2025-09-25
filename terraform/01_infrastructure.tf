@@ -251,7 +251,6 @@ locals{
   analytic_server_ns = "sapio-analytic-server"
   sapio_ns = "sapio"
   es_namespace             = "elasticsearch"
-  cert_manager_ns         = "cert-manager"
 }
 resource "kubernetes_namespace" "sapio_analytic_server" {
   metadata {
