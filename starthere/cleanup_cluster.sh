@@ -108,25 +108,25 @@ terraform destroy \
     -target=helm_release.elasticsearch \
     -target=aws_db_instance.sapio_mysql_replica \
     -target=aws_db_instance.sapio_mysql \
-    -target=random_password.es_root \
     -target=random_password.sapio_elasticsearch \
     -target=kubernetes_service_v1.sapio_bls_nlb \
     -target=kubernetes_horizontal_pod_autoscaler_v2.sapio_app_hpa \
     -target=kubernetes_service_v1.analytic_server_svc \
-    -target=kubernetes_secret.es_http_tls \
     -target=kubernetes_secret_v1.mysql_app1_creds \
     -target=kubernetes_secret_v1.mysql_portal_creds \
     -target=kubernetes_secret_v1.mysql_root_creds \
     -target=kubernetes_secret_v1.es_app_creds \
+    -target=kubernetes_secret.es_http_ca \
     -var-file="$TFVARS_FILE"
 
 echo "✅ kubernetes_deployment_v1 deleted"
 
-echo "🏃 2 of 3 - Running terraform destroy on kubernetes_persistent_volume_claim_v1..."
+echo "🏃 2 of 3 - Running terraform volumes and elasticsearch"
 
 terraform destroy \
     -auto-approve \
     -target=kubernetes_persistent_volume_claim_v1.sapio_ebs_pvc \
+    -target=kubectl_manifest.elasticsearch_eck \
     -var-file=$TFVARS_FILE
 
 echo "✅ kubernetes_persistent_volume_claim_v1 deleted"

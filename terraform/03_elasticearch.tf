@@ -6,10 +6,6 @@
 # --- Generate a DB password ---
 # WARNING: DO NOT CHANGE random_password SPECS INSIDE AFTER DEPLOYED TO ENV.
 # YOU MAY KILL THE ELASTICSEARCH root with a new password and lose existing password.
-resource "random_password" "es_root"{
-  length = 32
-  special = false
-}
 
 resource "random_password" "sapio_elasticsearch" {
   length  = 32
@@ -26,7 +22,7 @@ locals {
 }
 
 # ECK Operator, not elasticsearch.
-resource "kubernetes_namespace_v1" "elastic_system" {
+resource "kubernetes_namespace" "elastic_system" {
   metadata { name = "elastic-system" }
 }
 
@@ -35,7 +31,7 @@ resource "helm_release" "eck_operator" {
   repository       = "https://helm.elastic.co"
   chart            = "eck-operator"
   version          = "3.1.0"       # check doc/site for newer
-  namespace        = kubernetes_namespace_v1.elastic_system.metadata[0].name
+  namespace        = kubernetes_namespace.elastic_system.metadata[0].name
   create_namespace = false
   wait             = true
 }
@@ -57,12 +53,13 @@ resource "kubectl_manifest" "elasticsearch_eck" {
           count = var.es_num_desired_masters
           config = {
             "node.roles" = ["master"]
+            "node.store.allow_mmap" = false
           }
           volumeClaimTemplates = [
             {
               metadata = { name = "elasticsearch-data" }
               spec = {
-                storageClassName = "gp3"
+                storageClassName = kubernetes_storage_class.ebs_gp3.metadata[0].name
                 accessModes      = ["ReadWriteOnce"]
                 resources        = { requests = { storage = var.es_master_storage_size } }
               }
@@ -95,12 +92,13 @@ resource "kubectl_manifest" "elasticsearch_eck" {
           count = var.es_num_desired_datas
           config = {
             "node.roles" = ["data_hot", "ingest"]
+            "node.store.allow_mmap" = false
           }
           volumeClaimTemplates = [
             {
               metadata = { name = "elasticsearch-data" }
               spec = {
-                storageClassName = "gp3"
+                storageClassName = kubernetes_storage_class.ebs_gp3.metadata[0].name
                 accessModes      = ["ReadWriteOnce"]
                 resources        = { requests = { storage = var.es_data_storage_size } }
               }
@@ -132,7 +130,7 @@ resource "kubectl_manifest" "elasticsearch_eck" {
     }
   })
 
-  depends_on = [helm_release.eck_operator]
+  depends_on = [helm_release.eck_operator, kubernetes_storage_class.ebs_gp3]
 }
 
 
