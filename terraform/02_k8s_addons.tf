@@ -54,6 +54,15 @@ resource "aws_eks_addon" "coredns" {
   addon_name        = "coredns"
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "PRESERVE"
+
+  configuration_values = jsonencode({
+    replicaCount = 3,
+    resources = {
+      requests = { cpu = "100m", memory = "128Mi" }
+      limits   = { cpu = "500m", memory = "256Mi" }
+    }
+  })
+
   depends_on = [aws_eks_addon.pod_identity_agent]
 }
 

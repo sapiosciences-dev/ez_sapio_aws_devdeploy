@@ -170,15 +170,25 @@ resource "kubernetes_job_v1" "es_bootstrap_app_user" {
     template {
       metadata { labels = { job = "es-bootstrap-app-user" } }
       spec {
+        dns_policy    = "ClusterFirst"
         restart_policy = "OnFailure"
+        node_selector = {
+          "eks.amazonaws.com/compute-type" = "auto"
+        }
         container {
           name    = "bootstrap"
           image   = "curlimages/curl:8.10.1"
           command = ["/bin/sh","-c"]
           args = [<<-SCRIPT
-            set -euo pipefail
+            set -Eeuo pipefail
+            # show each command as it runs
+            set -x
+
+            log() { printf '%s %s\n' "$(date -Iseconds)" "$*" >&2; }
+
             ns="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
-            base="https://$ES_SERVICE.$ns.svc:9200"
+            fqdn="$ES_SERVICE.$ns.svc.cluster.local"
+            base="https://$fqdn:9200"
 
             auth_user="elastic:$(cat /elastic/elastic_pw)"
             app_user="$APP_USER"
@@ -188,34 +198,62 @@ resource "kubernetes_job_v1" "es_bootstrap_app_user" {
             http() { curl -sS --fail --cacert "$cacert" -u "$auth_user" -H 'Content-Type: application/json' "$@"; }
             code() { curl -sS -o /dev/null -w "%%{http_code}" --cacert "$cacert" -u "$auth_user" -H 'Content-Type: application/json' "$@"; }
 
-            # Wait for security endpoint
-            for i in $(seq 1 120); do
-              c="$(code -XGET "$base/_security/_authenticate")" || true
+            log "Bootstrap starting in ns=$ns; target=$fqdn"
+
+            # Quick DNS check so we know WHY it fails if it does
+            if command -v getent >/dev/null 2>&1; then
+              if ! getent hosts "$fqdn" >/dev/null 2>&1; then
+                log "DNS not resolved for $fqdn yet"
+              else
+                log "DNS resolved: $(getent hosts "$fqdn" | tr '\n' ' ')"
+              fi
+            fi
+
+            # Wait for security endpoint; print the HTTP code every attempt
+            tries=120
+            c=""
+            i=0
+            while [ $i -lt $tries ]; do
+              i=$((i+1))
+              c="$(code -XGET "$base/_security/_authenticate" || true)"
+              log "Probe $i/$tries -> /_security/_authenticate returned HTTP $c"
               [ "$c" = "200" ] && break
               sleep 5
             done
-            [ "$c" = "200" ] || { echo "Elasticsearch not ready (code=$c)"; exit 1; }
-
-            # Upsert role (uses ES_INDEX_PATTERN)
-            http -XPUT "$base/_security/role/app_writer" -d "{
-              \"cluster\": [\"monitor\"],
-              \"indices\": [{
-                \"names\": [\"$ES_INDEX_PATTERN\"],
-                \"privileges\": [\"create_index\",\"write\",\"create\",\"index\",\"read\",\"view_index_metadata\"]
-              }]
-            }" >/dev/null
-
-            # Create/Update user idempotently
-            ucode="$(code -XGET "$base/_security/user/$app_user")" || true
-            if [ "$ucode" = "200" ]; then
-              http -XPUT "$base/_security/user/$app_user" -d '{"roles":["app_writer"]}' >/dev/null
-            elif [ "$ucode" = "404" ]; then
-              http -XPUT "$base/_security/user/$app_user" -d "{\"password\":\"$app_pw\",\"roles\":[\"app_writer\"]}" >/dev/null
-            else
-              echo "Unexpected user check ($ucode)"; exit 1
+            if [ "$c" != "200" ]; then
+              log "Elasticsearch not ready after $tries attempts (last code=$c)"
+              # One last attempt to print body for debugging
+              curl -sk --cacert "$cacert" -u "$auth_user" "$base" || true
+              exit 1
             fi
 
-            echo "Bootstrap complete."
+            log "Upserting role app_writer (index pattern: $ES_INDEX_PATTERN)"
+            http -XPUT "$base/_security/role/app_writer" -d '{
+              "cluster": ["monitor"],
+              "indices": [{
+                "names": ["'"$ES_INDEX_PATTERN"'"],
+                "privileges": ["create_index","write","create","index","read","view_index_metadata"]
+              }]
+            }' >/dev/stdout 2>&1 || { log "Failed to upsert role"; exit 1; }
+
+            log "Checking user $app_user"
+            ucode="$(code -XGET "$base/_security/user/$app_user" || true)"
+            log "User lookup returned HTTP $ucode"
+
+            if [ "$ucode" = "200" ]; then
+              log "User exists; updating roles"
+              http -XPUT "$base/_security/user/$app_user" -d '{"roles":["app_writer"]}' >/dev/stdout 2>&1 \
+                || { log "Failed to update user roles"; exit 1; }
+            elif [ "$ucode" = "404" ]; then
+              log "User not found; creating"
+              http -XPUT "$base/_security/user/$app_user" -d '{"password":"'"$app_pw"'","roles":["app_writer"]}' >/dev/stdout 2>&1 \
+                || { log "Failed to create user"; exit 1; }
+            else
+              log "Unexpected user check HTTP $ucode"
+              exit 1
+            fi
+
+            log "Bootstrap complete."
           SCRIPT
           ]
 
@@ -280,7 +318,7 @@ resource "kubernetes_job_v1" "es_bootstrap_app_user" {
           secret {
             secret_name = local.es_app_secret_name
             items {
-              key = "user_pw"
+              key = "password"
               path = "user_pw"
             }
           }
