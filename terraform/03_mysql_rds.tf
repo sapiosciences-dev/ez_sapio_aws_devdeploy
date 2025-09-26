@@ -190,7 +190,7 @@ resource "aws_db_instance" "sapio_mysql_replica" {
 resource "kubernetes_service_v1" "mysql_writer_svc_sapio" {
   metadata {
     name      = "mysql-writer"
-    namespace = "sapio"
+    namespace = local.sapio_ns
   }
   spec {
     type          = "ExternalName"
@@ -203,11 +203,22 @@ resource "kubernetes_service_v1" "mysql_writer_svc_sapio" {
 resource "kubernetes_service_v1" "mysql_replica_svc_sapio" {
   metadata {
     name      = "mysql-replica"
-    namespace = "sapio"
+    namespace = local.sapio_ns
   }
   spec {
     type          = "ExternalName"
     external_name = aws_db_instance.sapio_mysql_replica.address
   }
   depends_on = [aws_db_instance.sapio_mysql_replica]
+}
+
+# Allow MySQL from EKS nodes to RDS
+resource "aws_security_group_rule" "rds_ingress_mysql_from_nodes" {
+  type                     = "ingress"
+  description              = "Allow MySQL from EKS worker nodes"
+  from_port                = 3306
+  to_port                  = 3306
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.rds_mysql.id
+  source_security_group_id = module.eks.node_security_group_id
 }
