@@ -26,7 +26,8 @@ locals {
   analytic_server_keystore_base64 = "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"
 
   sapio_bls_app_name = "${local.prefix_env}-sapio-app"
-  jdbc_url_root = "jdbc:mysql://${aws_db_instance.sapio_mysql.address}:${aws_db_instance.sapio_mysql.port}/"
+  jdbc_url_root = "jdbc:mysql://${kubernetes_service_v1.mysql_writer_svc_sapio.metadata[0].name}.svc.cluster.local:${aws_db_instance.sapio_mysql.port}/"
+  jdbc_replica_url_root = "jdbc:mysql://${kubernetes_service_v1.mysql_replica_svc_sapio.metadata[0].name}.svc.cluster.local:${aws_db_instance.sapio_mysql.port}/"
   jdbc_url_suffix = "?trustServerCertificate=true&allowPublicKeyRetrieval=true"
 }
 
@@ -320,7 +321,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
             protocol       = "TCP"
           }
           port {
-            container_port = 443
+            container_port = 8443
             name           = "https"
             protocol       = "TCP"
           }
@@ -553,10 +554,21 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
 
   # Give time for the cluster to complete (controllers, RBAC and IAM propagation)
   # See https://github.com/setheliot/eks_auto_mode/blob/main/docs/separate_configs.md
-  depends_on = [module.eks, aws_db_instance.sapio_mysql, aws_db_instance.sapio_mysql_replica,
+  depends_on = [module.eks, kubernetes_service_v1.mysql_writer_svc_sapio, kubernetes_service_v1.mysql_replica_svc_sapio,
     kubernetes_job_v1.es_bootstrap_app_user, kubernetes_service_account_v1.sapio_account,
     aws_eks_addon.vpc_cni, kubernetes_secret_v1.es_ca_for_sapio]
+}
 
+resource "kubernetes_network_policy_v1" "sapio_allow_egress_all" {
+  metadata {
+    name      = "allow-egress-all-sapio"
+    namespace = local.sapio_ns
+  }
+  spec {
+    pod_selector {}
+    policy_types = ["Egress"]
+    egress { }
+  }
 }
 
 # There is no LB support. But replica = 1 means there is no replica. This is the easiest way to export the app.
@@ -573,7 +585,7 @@ resource "kubernetes_service_v1" "sapio_bls_nlb" {
       "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type" = "ip"
       "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
 
-      # Health check (TCP on 443) — or switch to HTTP 8088 if you have an HTTP health endpoint
+      # Health check
       "service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol" = "TCP"
       "service.beta.kubernetes.io/aws-load-balancer-healthcheck-port"     = "8088"
     }
@@ -583,8 +595,8 @@ resource "kubernetes_service_v1" "sapio_bls_nlb" {
     selector = { app = local.sapio_bls_app_name }   # same pods
     port {
       name        = "https"
-      port        = 443          # NLB listener port
-      target_port = 443
+      port        = 8443          # NLB listener port
+      target_port = 8443
       protocol    = "TCP"
     }
     port {

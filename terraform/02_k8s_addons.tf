@@ -53,7 +53,7 @@ resource "aws_eks_addon" "coredns" {
   cluster_name      = module.eks.cluster_name
   addon_name        = "coredns"
   resolve_conflicts_on_create = "OVERWRITE"
-  resolve_conflicts_on_update = "PRESERVE"
+  resolve_conflicts_on_update = "OVERWRITE"
 
   configuration_values = jsonencode({
     replicaCount = 3,
@@ -195,4 +195,60 @@ resource "kubernetes_persistent_volume_claim_v1" "sapio_ebs_pvc" {
   # Give time for the cluster to complete (controllers, RBAC and IAM propagation)
   # See https://github.com/setheliot/eks_auto_mode/blob/main/docs/separate_configs.md
   depends_on = [kubernetes_storage_class.custom_gp3]
+}
+
+resource "kubernetes_network_policy_v1" "coredns_allow_ingress" {
+  metadata {
+    name      = "coredns-allow-ingress"
+    namespace = "kube-system"
+  }
+  spec {
+    pod_selector {
+      match_labels = { "k8s-app" = "kube-dns" }
+    }
+    policy_types = ["Ingress"]
+    ingress {
+      ports {
+        port = 53
+        protocol = "UDP"
+      }
+      ports {
+        port = 53
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+resource "kubernetes_network_policy_v1" "coredns_allow_egress" {
+  metadata {
+    name      = "coredns-allow-egress"
+    namespace = "kube-system"
+  }
+  spec {
+    pod_selector {
+      match_labels = { "k8s-app" = "kube-dns" }
+    }
+    policy_types = ["Egress"]
+    egress {
+      ports {
+        port = 53
+        protocol = "UDP"
+      }
+      ports {
+        port = 53
+        protocol = "TCP"
+      }
+    }
+  }
+}
+
+resource "aws_security_group_rule" "cluster_sg_ingress_vpc_all" {
+  type              = "ingress"
+  description       = "Allow intra-VPC traffic between EKS nodes/pods (incl. kube-dns)"
+  security_group_id = module.eks.cluster_primary_security_group_id
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = [module.vpc.vpc_cidr_block]  # 10.0.0.0/16
 }

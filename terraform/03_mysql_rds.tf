@@ -185,3 +185,29 @@ resource "aws_db_instance" "sapio_mysql_replica" {
 
   depends_on = [aws_db_instance.sapio_mysql]
 }
+
+# Writer endpoint in sapio namespace, creates a local cluster addressable service.
+resource "kubernetes_service_v1" "mysql_writer_svc_sapio" {
+  metadata {
+    name      = "mysql-writer"
+    namespace = "sapio"
+  }
+  spec {
+    type          = "ExternalName"
+    external_name = aws_db_instance.sapio_mysql.address  # writer endpoint DNS
+  }
+  depends_on = [aws_db_instance.sapio_mysql]
+}
+
+# Replica endpoint, creates a local cluster addressable service.
+resource "kubernetes_service_v1" "mysql_replica_svc_sapio" {
+  metadata {
+    name      = "mysql-replica"
+    namespace = "sapio"
+  }
+  spec {
+    type          = "ExternalName"
+    external_name = aws_db_instance.sapio_mysql_replica.address
+  }
+  depends_on = [aws_db_instance.sapio_mysql_replica]
+}

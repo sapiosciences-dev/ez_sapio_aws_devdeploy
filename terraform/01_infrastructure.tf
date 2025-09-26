@@ -149,8 +149,8 @@ resource "aws_security_group" "vpc_endpoint_sg" {
 
   ingress {
     description     = "Allow EKS Nodes to access VPC Endpoints"
-    from_port       = 443
-    to_port         = 443
+    from_port       = 8443
+    to_port         = 8443
     protocol        = "tcp"
     security_groups = [local.publish_security_group]
     cidr_blocks     = var.user_cidr_blocks
@@ -172,7 +172,7 @@ resource "aws_security_group" "vpc_endpoint_sg" {
     security_groups = [local.publish_security_group]
   }
   ingress {
-    description = "Allow Debug"
+    description = "Allow Debug" # Note: Debug is not serviced to Sapio BLS by default.
     from_port   = 5005
     to_port     = 5005
     protocol    = "tcp"
@@ -180,7 +180,7 @@ resource "aws_security_group" "vpc_endpoint_sg" {
     security_groups = [local.publish_security_group]
   }
   ingress {
-    description = "Allow SSH"
+    description = "Allow SSH" # Note: SSH isn't serviced to Sapio BLS by default.
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"

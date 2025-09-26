@@ -2,12 +2,12 @@
 variable admin_cidr_blocks {
   description = "The CIDR blocks for admin access (e.g., SSH, RDP). Example: "
   type        = list(string)
-  default     = ["127.0.0.1/32"]
+  nullable = false
 }
 variable user_cidr_blocks {
   description = "The CIDR block for end-user access (e.g., HTTP, HTTPS). Example: "
   type        = list(string)
-  default     = ["0.0.0.0/0"]
+  nullable = false
 }
 
 # Define environment stage name
