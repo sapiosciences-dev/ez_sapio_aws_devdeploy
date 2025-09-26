@@ -115,7 +115,7 @@ resource "kubectl_manifest" "elasticsearch_eck" {
           name  = "data"
           count = var.es_num_desired_datas
           config = {
-            "node.roles" = ["data_hot", "ingest"]
+            "node.roles" = ["data_hot","data_content","ingest"]
             "node.store.allow_mmap" = false
             "http.bind_host"        = "0.0.0.0"
             "http.publish_host"     = "$${POD_IP}"
@@ -131,8 +131,8 @@ resource "kubectl_manifest" "elasticsearch_eck" {
             }
           ]
           podTemplate = {
-            terminationGracePeriodSeconds = 30
             spec = {
+              terminationGracePeriodSeconds = 30
               nodeSelector = {
                 "eks.amazonaws.com/compute-type" = "auto"
               }
@@ -163,8 +163,6 @@ resource "kubectl_manifest" "elasticsearch_eck" {
   }
 }
 
-
-
 # Secret with desired app password (namespace "elasticsearch" and "sapio" so sapio app and bootstrap script that creates user below can both read it)
 resource "kubernetes_secret_v1" "es_app_creds" {
   for_each = local.es_app_secret_namespaces
@@ -181,6 +179,27 @@ resource "kubernetes_secret_v1" "es_app_creds" {
   depends_on = [kubernetes_namespace.sapio]
 }
 
+# Wait until the CA secret exists
+resource "null_resource" "wait_for_es_ca" {
+  triggers = {
+    es_name = local.es_release_name
+    ns      = local.es_namespace
+  }
+  provisioner "local-exec" {
+    command = <<-EOT
+            set -e
+      for i in $(seq 1 120); do
+        if kubectl get secret ${local.es_release_name}-es-http-ca-internal -n ${local.es_namespace} >/dev/null 2>&1; then
+          exit 0
+        fi
+        sleep 5
+      done
+      echo "Timed out waiting for ES CA secret"; exit 1
+    EOT
+  }
+  depends_on = [kubectl_manifest.elasticsearch_eck]
+}
+
 # Job that waits for ES to be ready, then creates role and user
 resource "kubernetes_job_v1" "es_bootstrap_app_user" {
   metadata {
@@ -189,10 +208,12 @@ resource "kubernetes_job_v1" "es_bootstrap_app_user" {
   }
   spec {
     backoff_limit = 4
+    # backoff_limit = 0 # This line when debugging the job.
     template {
       metadata { labels = { job = "es-bootstrap-app-user" } }
       spec {
         dns_policy    = "ClusterFirst"
+        # restart_policy = "Never" # This line when debugging the job.
         restart_policy = "OnFailure"
         node_selector = {
           "eks.amazonaws.com/compute-type" = "auto"
@@ -349,7 +370,7 @@ resource "kubernetes_job_v1" "es_bootstrap_app_user" {
     }
   }
 
-  depends_on = [kubectl_manifest.elasticsearch_eck]
+  depends_on = [kubectl_manifest.elasticsearch_eck, null_resource.wait_for_es_ca]
 }
 
 resource "kubernetes_network_policy_v1" "allow_sapio_to_es" {
@@ -381,27 +402,6 @@ resource "kubernetes_network_policy_v1" "allow_sapio_to_es" {
     }
   }
   depends_on = [kubernetes_namespace.elasticsearch]
-}
-
-# Wait until the CA secret exists
-resource "null_resource" "wait_for_es_ca" {
-  triggers = {
-    es_name = local.es_release_name
-    ns      = local.es_namespace
-  }
-  provisioner "local-exec" {
-    command = <<-EOT
-            set -e
-      for i in $(seq 1 120); do
-        if kubectl get secret ${local.es_release_name}-es-http-ca-internal -n ${local.es_namespace} >/dev/null 2>&1; then
-          exit 0
-        fi
-        sleep 5
-      done
-      echo "Timed out waiting for ES CA secret"; exit 1
-    EOT
-  }
-  depends_on = [kubectl_manifest.elasticsearch_eck]
 }
 
 data "kubernetes_secret" "es_http_ca" {
