@@ -583,7 +583,6 @@ resource "kubernetes_service_v1" "sapio_bls_nlb" {
 
       # Tell AWS LB Controller to create an NLB and target pod IPs directly
       "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type" = "ip"
-      "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
 
       # Health check
       "service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol" = "TCP"
@@ -593,6 +592,7 @@ resource "kubernetes_service_v1" "sapio_bls_nlb" {
   spec {
     type     = "LoadBalancer"
     allocate_load_balancer_node_ports = false
+    load_balancer_class = "eks.amazonaws.com/nlb"
     selector = { app = local.sapio_bls_app_name }   # same pods
     port {
       name        = "https"
