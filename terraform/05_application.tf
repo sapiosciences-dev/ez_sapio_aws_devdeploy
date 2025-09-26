@@ -359,7 +359,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           # Elasticsearch connection details
           env {
             name  = "ES_URL"
-            value = "https://elasticsearch-master.${local.es_namespace}.svc:9200"
+            value = "https://${local.es_release_name}-es-http.${local.es_namespace}.svc.cluster.local:9200"
           }
           env {
             name  = "ES_USER"
