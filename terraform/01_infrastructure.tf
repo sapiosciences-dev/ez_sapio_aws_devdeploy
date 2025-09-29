@@ -94,6 +94,10 @@ module "eks" {
       name       = "sapio-bls"
       subnet_ids = module.vpc.private_subnets
 
+      node_repair_config = {
+        enabled = true
+      }
+
       # Pin capacity to avoid any scale-in/scale-out churn
       min_size     = 1
       max_size     = 1

@@ -242,7 +242,7 @@ fi
 
 # Run Terraform apply
 echo "🚀 Running Terraform apply..."
-terraform apply -auto-approve -var-file="$TFVARS_FILE"
+terraform apply -var-file="$TFVARS_FILE"
 
 #####
 # Get the URL

@@ -21,7 +21,7 @@ This tutorial assumes you are not familiar with AWS, linux commands, and shell. 
 3. Click on "Launch Instance". Select Ubuntu 22.04 LTS, 64-bit, c7i.xlarge or equivalent.
 4. Generate a new key if you don't have one. Otherwise, you can use an existing key pair.
 5. Allow SSH traffic from "My IP".
-6. 30GB of gp3 storage should be plenty, you can **encrypt** it.
+6. 100GB of gp3 storage should be plenty, you can **encrypt** it.
 7. In "Number of Instances", make sure you select only 1 instance. Give this instance a name such as "sapio_eks_training_admin_disposable_ec2". Click "Launch Instance".
 8. Enter the instance and go to "Connect" tab, enter "SSH Client" tab, copy the public DNS. Use putty to save a profile with the public DNS, username "ubuntu", and the private key you downloaded earlier.
 9. Connect to the instance using putty.

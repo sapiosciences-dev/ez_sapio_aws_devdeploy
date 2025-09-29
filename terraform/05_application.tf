@@ -67,6 +67,7 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
         container {
           name  = "${local.analytic_server_app_name}-analytic-server"
           image = var.analytic_server_docker_image
+          image_pull_policy = "Always" # re-pull on rollout restart of deployment, even if tag isn't changing.
           port  {
             name = "analytic-tcp"
             container_port = 8686
@@ -294,6 +295,14 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
 
   spec {
     replicas = 1 # DO NOT MODIFY
+    strategy {
+      # Only run at max 1 server even in case of update. So there will be downtime when BLS updated but we have no choice for now.
+      type = "RollingUpdate"
+      rolling_update {
+        max_surge       = 0 # never creates two pods at the same time
+        max_unavailable = 1 # allow downtime window for this deployment.
+      }
+    }
     selector {
       match_labels = {
         app = local.sapio_bls_app_name
@@ -312,8 +321,10 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
         node_selector = {
           "sapio/pool" = "sapio-bls"
         }
+
         container {
           image = var.sapio_bls_docker_image
+          image_pull_policy = "Always" # re-pull on rollout restart of deployment, even if tag isn't changing.
           name  = "${local.sapio_bls_app_name}-sapio-app-pod"
           port {
             container_port = 22
@@ -468,13 +479,13 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           }
           env {
             name  = "EXT_SERVER_PROPS"
-            value = ""
+            value = "log.verbose.aws.license.checks=true"
             # Any environment variable starting with the string `EXT_SERVER_PROPS` will be appended to the `VeloxServer.properties` file.
             # Example: "veloxity.pdf.autostart=false"
           }
           env {
             name  = "VELOXSERVER_JVM_ARGS"
-            value = ""
+            value = "-XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/data/oom.hprof"
           }
           env {
             name  = "SERVER_LICENSE"
@@ -580,13 +591,12 @@ resource "kubernetes_service_v1" "sapio_bls_nlb" {
     labels    = { app = local.sapio_bls_app_name }
     annotations = {
       "service.beta.kubernetes.io/aws-load-balancer-scheme"          = "internet-facing"
+      # Health check on the same port clients use
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol" = "TCP"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-port"     = "traffic-port"
 
       # Tell AWS LB Controller to create an NLB and target pod IPs directly
       "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type" = "ip"
-
-      # Health check
-      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol" = "TCP"
-      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-port"     = "8088"
     }
   }
   spec {
@@ -610,12 +620,6 @@ resource "kubernetes_service_v1" "sapio_bls_nlb" {
       name        = "debug"
       port        = 5005
       target_port = 5005
-      protocol    = "TCP"
-    }
-    port {
-      name        = "healthcheck"
-      port        = 8088
-      target_port = 8088
       protocol    = "TCP"
     }
     port {

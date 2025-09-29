@@ -9,6 +9,26 @@
 # These addons are needed for minimum connectivity with the self-managed node that Sapio BLS runs on which
 # we can't shutdown the node without terminating service to end users.
 
+# Auto Health Monitor
+resource "aws_eks_addon" "node_monitoring_manual_pool" {
+  cluster_name = module.eks.cluster_name
+  addon_name   = "eks-node-monitoring-agent"
+
+  # # Scope the DaemonSet to your node group only
+  # configuration_values = jsonencode({
+  #   # The exact nesting depends on the schema you fetched above.
+  #   # Many addons expose pod-level scheduling under a key like "daemonset" or "pod".
+  #   daemonset = {
+  #     nodeSelector = {
+  #       "sapio/pool" = "sapio-bls"
+  #     }
+  #   }
+  # })
+
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+}
+
 # ID Agent
 resource "aws_eks_addon" "pod_identity_agent" {
   cluster_name      = module.eks.cluster_name

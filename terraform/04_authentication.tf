@@ -36,13 +36,9 @@ data "aws_iam_policy_document" "service_account_trust_policy" {
     condition {
       test     = "StringEquals"
       variable = "${local.oidc}:sub"
-      values = ["system:serviceaccount:default:${local.app_serviceaccount}"]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "${local.oidc}:sub"
       values   = ["system:serviceaccount:${local.analytic_server_ns}:${local.app_serviceaccount}",
-      "system:serviceaccount:${local.sapio_ns}:${local.app_serviceaccount}"]
+      "system:serviceaccount:${local.sapio_ns}:${local.app_serviceaccount}",
+      "system:serviceaccount:default:${local.app_serviceaccount}"]
     }
 
     condition {

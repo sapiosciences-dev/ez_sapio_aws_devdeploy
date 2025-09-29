@@ -22,6 +22,20 @@ kubectl get nodes
 ```
 This command will list all the pods in the default namespace.
 
+## Update Sapio Analytic Deployment
+
+To update Sapio BLS with new image:
+1. Update the tagged version in your environmental file, if changed. You usually would want to have a different tag per deployment to keep track, but that is optional.
+IF the tag had changed ,you must rerun deploy_cluster to update the environment deployment.
+2. If the rollout update has not taken effect automatically, run the following command to immediately restart Sapio BLS deployment using newest image. This is required since even if the deployment has updated the containers won't immediately restart with new version.:
+
+```shell
+# If analytic server tag has changed:
+kubectl rollout restart deployment ekssapio-dev-analyticserver-app-analytic-server-deployment -n sapio-analytic-server
+# If sapio BLS tag has changed:
+kubectl rollout restart deployment ekssapio-dev-sapio-app-deployment -n sapio
+```
+
 
 ## Check HELM Status
 ```shell
