@@ -121,6 +121,8 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
       }
     }
 
+    progress_deadline_seconds = 1200 # 20 minutes
+
     template {
       metadata {
         labels = {
@@ -134,10 +136,12 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
         }
         service_account_name = local.app_serviceaccount
 
+
         init_container {
           name    = "augment-trust"
           # Prefer your app image so we modify the *same* JRE/Python the app uses.
           image   = var.analytic_server_docker_image # WARNING: IMAGE MUST BE THE SAME AS THE MAIN CONTAINER IMAGE SO THEY BELONG TO SAME FILESYSTEM AND TAKE EFFECT.
+          #image_pull_policy = "Always"
 
           command = ["/bin/bash", "-c"]
           args    = [local.build_trust_script]
@@ -454,6 +458,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
 
   spec {
     replicas = 1 # DO NOT MODIFY
+    progress_deadline_seconds = 1200 # 20 minutes
     strategy {
       # Only run at max 1 server even in case of update. So there will be downtime when BLS updated but we have no choice for now.
       type = "RollingUpdate"
@@ -485,6 +490,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           name    = "augment-trust"
           # Prefer your app image so we modify the *same* JRE/Python the app uses.
           image   = var.sapio_bls_docker_image
+          #image_pull_policy = "Always" # Turn this on if you are going to overwrite a tag.
 
           command = ["/bin/bash", "-c"]
           args    = [local.build_trust_script]
