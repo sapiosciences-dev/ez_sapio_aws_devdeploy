@@ -251,11 +251,11 @@ echo -e "\n=========================="
 # Wait for 10 seconds
 echo -n "🔄 Getting URL. Please stand by..."
 for i in {1..1000}; do
-    EXTERNAL_URL_OUTPUT=$(terraform output  -raw sapio_bls_external_url)
+    EXTERNAL_URL_OUTPUT=$(terraform output -raw sapio_bls_external_url)
     # If output is "Sapio BLS external endpoint is provisioning..." then keep waiting
     if [ "$EXTERNAL_URL_OUTPUT" != "Sapio BLS external endpoint is provisioning..." ]; then
         echo "⭐️ Here is the URL of you newly deployed application running on EKS:"
-        echo "💻    https://$URL    "
+        echo "💻    https://$EXTERNAL_URL_OUTPUT:8443/velox_portal    "
         echo "⏳ Please be patient. It may take up to a minute to become available"
         exit 0
     fi

@@ -29,6 +29,71 @@ locals {
   jdbc_url_root = "jdbc:mysql://${kubernetes_service_v1.mysql_writer_svc_sapio.metadata[0].name}.${local.sapio_ns}.svc.cluster.local:${aws_db_instance.sapio_mysql.port}/"
   jdbc_replica_url_root = "jdbc:mysql://${kubernetes_service_v1.mysql_replica_svc_sapio.metadata[0].name}.${local.sapio_ns}.svc.cluster.local:${aws_db_instance.sapio_mysql.port}/"
   jdbc_url_suffix = "?trustServerCertificate=true&allowPublicKeyRetrieval=true"
+
+  java_security_dir  = "/opt/java/openjdk/lib/security"
+  build_trust_script = <<-EOS
+set -eu
+
+# Expect CA mounted as /usr/local/share/ca-certificates/es-ca.crt
+if [ ! -s "/usr/local/share/ca-certificates/es-ca.crt" ]; then
+  echo "ERROR: missing /usr/local/share/ca-certificates/es-ca.crt" >&2
+  exit 1
+fi
+
+# Ensure the Debian Java keystore target exists inside the mounted /etc/ssl/certs
+mkdir -p "/etc/ssl/certs/java"
+
+# 1) Rebuild OS bundle into mounted /etc/ssl/certs
+if command -v update-ca-certificates >/dev/null 2>&1; then
+  update-ca-certificates
+elif command -v update-ca-trust >/dev/null 2>&1; then
+  update-ca-trust extract
+else
+  echo "WARN: no update-ca-* tool; skipping OS bundle" >&2
+fi
+
+# 2) JDK trust: copy defaults to a volume, then either import CA or symlink to Debian's java/cacerts
+if [ -d "$K8S_JAVA_SECURITY_DIR" ]; then
+  mkdir -p "/work/jdk-security"
+  cp -a "$K8S_JAVA_SECURITY_DIR/." "/work/jdk-security/"
+
+  if command -v keytool >/dev/null 2>&1; then
+    keytool -importcert -noprompt -trustcacerts \
+      -alias es-ca \
+      -file "/usr/local/share/ca-certificates/es-ca.crt" \
+      -keystore "/work/jdk-security/cacerts" \
+      -storepass changeit || echo "WARN: keytool import failed" >&2
+  else
+    if [ -r "/etc/ssl/certs/java/cacerts" ]; then
+      rm -f "/work/jdk-security/cacerts"
+      ln -s "/etc/ssl/certs/java/cacerts" "/work/jdk-security/cacerts"
+      echo "INFO: linked JDK cacerts -> /etc/ssl/certs/java/cacerts" >&2
+    else
+      echo "WARN: neither keytool nor /etc/ssl/certs/java/cacerts present; JDK trust may miss CA" >&2
+    fi
+  fi
+fi
+
+# 3) Python/Requests combined PEM = certifi + your CA (fallback to OS bundle)
+mkdir -p /certs
+if command -v python3 >/dev/null 2>&1; then
+  pycacert="$(python3 -c 'import certifi,sys; print(certifi.where() if hasattr(certifi,"where") else "")' 2>/dev/null || true)"
+  if [ -n "$pycacert" ] && [ -r "$pycacert" ]; then
+    cat "$pycacert" "/usr/local/share/ca-certificates/es-ca.crt" > "/certs/cacert-plus.pem"
+  elif [ -r "/etc/ssl/certs/ca-certificates.crt" ]; then
+    cat "/etc/ssl/certs/ca-certificates.crt" "/usr/local/share/ca-certificates/es-ca.crt" > "/certs/cacert-plus.pem"
+  else
+    cp "/usr/local/share/ca-certificates/es-ca.crt" "/certs/cacert-plus.pem"
+  fi
+else
+  if [ -r "/etc/ssl/certs/ca-certificates.crt" ]; then
+    cat "/etc/ssl/certs/ca-certificates.crt" "/usr/local/share/ca-certificates/es-ca.crt" > "/certs/cacert-plus.pem"
+  else
+    cp "/usr/local/share/ca-certificates/es-ca.crt" "/certs/cacert-plus.pem"
+  fi
+fi
+  EOS
+
 }
 
 ###############################
@@ -36,14 +101,19 @@ locals {
 ###############################
 resource "kubernetes_deployment_v1" "analytic_server_deployment" {
   count = var.analytic_enabled ? 1 : 0
+
   metadata {
     name = "${local.analytic_server_app_name}-analytic-server-deployment"
     namespace = local.analytic_server_ns
   }
-  spec {
-    # Set a sensible baseline; HPA will change this at runtime
-    replicas = 1
 
+  # The image is large and takes time to pull, then it may wait a grace for terminate.
+  timeouts {
+    create = "20m"
+    update = "20m"
+  }
+
+  spec {
     selector {
       match_labels = {
         app  = local.analytic_server_app_name
@@ -64,10 +134,59 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
         }
         service_account_name = local.app_serviceaccount
 
+        init_container {
+          name    = "augment-trust"
+          # Prefer your app image so we modify the *same* JRE/Python the app uses.
+          image   = var.analytic_server_docker_image # WARNING: IMAGE MUST BE THE SAME AS THE MAIN CONTAINER IMAGE SO THEY BELONG TO SAME FILESYSTEM AND TAKE EFFECT.
+
+          command = ["/bin/bash", "-c"]
+          args    = [local.build_trust_script]
+
+          # Needs root to write OS trust paths and JDK cacerts
+          security_context {
+            run_as_user = 0
+          }
+
+          resources {
+            requests = {
+              cpu    = "10m"
+              memory = "64Mi"
+            }
+            limits = {
+              memory = "128Mi"
+            }
+          }
+
+          # Provide the image-specific JDK path to the script (no braces in script)
+          env {
+            name = "K8S_JAVA_SECURITY_DIR"
+            value = local.java_security_dir
+          }
+
+          # CA file placed where update-ca-certificates will read it
+          volume_mount {
+            name       = "internal-ca"
+            mount_path = "/usr/local/share/ca-certificates/es-ca.crt"
+            sub_path   = "es-ca.crt"
+            read_only  = true
+          }
+          volume_mount {
+            name = "os-certs"
+            mount_path = "/etc/ssl/certs"
+          }
+          volume_mount {
+            name = "jdk-security"
+            mount_path = "/work/jdk-security"
+          }
+          volume_mount {
+            name = "py-bundle"
+            mount_path = "/certs"
+          }
+        }
+
         container {
           name  = "${local.analytic_server_app_name}-analytic-server"
           image = var.analytic_server_docker_image
-          image_pull_policy = "Always" # re-pull on rollout restart of deployment, even if tag isn't changing.
           port  {
             name = "analytic-tcp"
             container_port = 8686
@@ -85,6 +204,16 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
               memory = var.analytic_server_memory_limit
               ephemeral-storage = var.analytic_server_temp_storage_size
             }
+          }
+
+          # Helpful for Python/Requests (harmless if unused)
+          env {
+            name = "SSL_CERT_FILE"
+            value = "/certs/cacert-plus.pem"
+          }
+          env {
+            name = "REQUESTS_CA_BUNDLE"
+            value = "/certs/cacert-plus.pem"
           }
 
           env {
@@ -115,24 +244,48 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
             initial_delay_seconds = 30
             period_seconds        = 10
           }
-
-          #volume
+          # common init mounts to share filesystem.
           volume_mount {
             name       = "internal-ca"
-            mount_path = "/certificates"
+            mount_path = "/usr/local/share/ca-certificates/es-ca.crt"
+            sub_path   = "es-ca.crt"
             read_only  = true
+          }
+          volume_mount {
+            name = "os-certs"
+            mount_path = "/etc/ssl/certs"
+          }
+          volume_mount {
+            name = "jdk-security"
+            mount_path = "/work/jdk-security"
+          }
+          volume_mount {
+            name = "py-bundle"
+            mount_path = "/certs"
           }
         } # container
         volume {
           name = "internal-ca"
           secret {
-            secret_name = "es-ca"     # created per-namespace above
+            secret_name = "es-ca"
             items {
-              key  = "ca.crt"
-              path = "ca.crt"         # keep .crt extension
+              key = "ca.crt"
+              path = "es-ca.crt"
             }
           }
         }
+        volume {
+          name = "os-certs"
+          empty_dir {}
+        }   # OS bundle output
+        volume {
+          name = "jdk-security"
+          empty_dir {}
+        }   # JDK security dir (copied + CA)
+        volume {
+          name = "py-bundle"
+          empty_dir {}
+        }   # Combined PEM for Python
 
         # Spread across zones/nodes for resilience
         topology_spread_constraint {
@@ -293,6 +446,12 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
     }
   }
 
+  # The image is large and takes time to pull, then it may wait a grace for terminate.
+  timeouts {
+    create = "20m"
+    update = "20m"
+  }
+
   spec {
     replicas = 1 # DO NOT MODIFY
     strategy {
@@ -312,7 +471,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
       # BLS Spec and BLS app as selected container for deployment
       metadata {
         labels = {
-          app = local.sapio_bls_app_name
+          app = local.sapio_bls_app_name # WARNING: MUST BE SAME AS THE MAIN CONTAINER IMAGE FOR SAME FILESYSTEM TO TAKE EFFECT.
         }
       }
       spec {
@@ -322,9 +481,58 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           "sapio/pool" = "sapio-bls"
         }
 
+        init_container {
+          name    = "augment-trust"
+          # Prefer your app image so we modify the *same* JRE/Python the app uses.
+          image   = var.sapio_bls_docker_image
+
+          command = ["/bin/bash", "-c"]
+          args    = [local.build_trust_script]
+
+          # Needs root to write OS trust paths and JDK cacerts
+          security_context {
+            run_as_user = 0
+          }
+
+          resources {
+            requests = {
+              cpu    = "10m"
+              memory = "64Mi"
+            }
+            limits = {
+              memory = "128Mi"
+            }
+          }
+
+          # Provide the image-specific JDK path to the script (no braces in script)
+          env {
+            name = "K8S_JAVA_SECURITY_DIR"
+            value = local.java_security_dir
+          }
+
+          # CA file placed where update-ca-certificates will read it
+          volume_mount {
+            name       = "internal-ca"
+            mount_path = "/usr/local/share/ca-certificates/es-ca.crt"
+            sub_path   = "es-ca.crt"
+            read_only  = true
+          }
+          volume_mount {
+            name = "os-certs"
+            mount_path = "/etc/ssl/certs"
+          }
+          volume_mount {
+            name = "jdk-security"
+            mount_path = "/work/jdk-security"
+          }
+          volume_mount {
+            name = "py-bundle"
+            mount_path = "/certs"
+          }
+        }
+
         container {
           image = var.sapio_bls_docker_image
-          image_pull_policy = "Always" # re-pull on rollout restart of deployment, even if tag isn't changing.
           name  = "${local.sapio_bls_app_name}-sapio-app-pod"
           port {
             container_port = 22
@@ -387,7 +595,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           }
           env {
             name  = "ES_CA_CERT"
-            value = "/certificates/es_ca/ca.crt"
+            value = "/certificates/ca.crt"
           }
           # Add environment variable using Kubernetes Downward API to get node name
           env {
@@ -525,24 +733,65 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
             name       = "ebs-k8s-attached-storage"
             mount_path = "/data" # Not sure what data we want to push if the license file is in the container as SERVER_LICENSE base64 env.
           }
+
+          # Helpful for Python/Requests (harmless if unused)
+          env {
+            name = "SSL_CERT_FILE"
+            value = "/certs/cacert-plus.pem"
+          }
+          env {
+            name = "REQUESTS_CA_BUNDLE"
+            value = "/certs/cacert-plus.pem"
+          }
+
+          # common init mounts to share filesystem.
           volume_mount {
             name       = "internal-ca"
-            mount_path = "/certificates"
+            mount_path = "/usr/local/share/ca-certificates/es-ca.crt"
+            sub_path   = "es-ca.crt"
             read_only  = true
+          }
+          volume_mount {
+            name = "os-certs"
+            mount_path = "/etc/ssl/certs"
+            read_only = true
+          }
+          volume_mount {
+            name = "jdk-security"
+            mount_path = local.java_security_dir
+            read_only = true
+          }
+          volume_mount {
+            name = "py-bundle"
+            mount_path = "/certs"
+            read_only = true
           }
         }
         #container
+        # Volumes
+        # internal-ca: your existing Secret with key "ca.crt"
         volume {
           name = "internal-ca"
           secret {
-            secret_name = "es-ca"     # created per-namespace above
+            secret_name = "es-ca"
             items {
-              key  = "ca.crt"
-              path = "ca.crt"         # keep .crt extension
+              key = "ca.crt"
+              path = "es-ca.crt"
             }
-            # optional = false        # default; add if you want to be explicit
           }
         }
+        volume {
+          name = "os-certs"
+          empty_dir {}
+        }   # OS bundle output
+        volume {
+          name = "jdk-security"
+          empty_dir {}
+        }   # JDK security dir (copied + CA)
+        volume {
+          name = "py-bundle"
+          empty_dir {}
+        }   # Combined PEM for Python
         # Define the volume using the PVC
         volume {
           name = "ebs-k8s-attached-storage"
