@@ -206,3 +206,14 @@ variable "bls_server_temp_storage_size" {
   default     = "20Gi"
 }
 
+variable "s3_enable_versioning" {
+  description = "Enable S3 object versioning. Required for keeping 'snapshots' of old versions."
+  type        = bool
+  default     = true
+}
+
+variable "s3_versioning_snapshot_days" {
+  description = "Days to keep noncurrent (old) versions. Set 0 to keep forever (no expiration rule)."
+  type        = number
+  default     = 30
+}

@@ -3,7 +3,6 @@
 # RDS MySQL 8.0 (writer + 1 read replica)
 # Logical Order: 03
 ########################################
-# --- Locals (rename the service account for RDS use cases) ---
 # WARNING: DO NOT MODIFY random_password spec after it has been put in any env.
 # --- Generate a DB password ---
 resource "random_password" "sapio_mysql_root" {
@@ -13,6 +12,7 @@ resource "random_password" "sapio_mysql_root" {
 
 locals {
   app_serviceaccount = "app-${local.prefix_env}-serviceaccount"
+  analytic_serviceaccount = "as-${local.prefix_env}-serviceaccount"
   oidc               = module.eks.oidc_provider
   sql_root_user = "sapio"
 }

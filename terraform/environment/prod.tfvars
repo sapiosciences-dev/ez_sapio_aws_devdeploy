@@ -52,3 +52,7 @@ bls_server_cpu_limit = "7500m"
 bls_server_memory_limit = "28Gi"
 bls_server_storage_size = "1000Gi"
 bls_server_temp_storage_size = "100Gi"
+
+# S3
+s3_enable_versioning = true
+s3_versioning_snapshot_days = 14

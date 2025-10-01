@@ -51,20 +51,33 @@ data "aws_iam_policy_document" "service_account_trust_policy" {
   depends_on = [kubernetes_namespace.elasticsearch, kubernetes_namespace.sapio, kubernetes_namespace.sapio_analytic_server]
 }
 
-resource "aws_iam_role" "app_irsa" {
-  name               = "app-${local.prefix_env}-irsa"
+### Analytic Server IRSA And Service Account ###
+resource "aws_iam_role" "analytic_server_irsa" {
+  name               = "as-${local.prefix_env}-irsa"
   assume_role_policy = data.aws_iam_policy_document.service_account_trust_policy.json
 }
 
 resource "kubernetes_service_account_v1" "analytic_server_account" {
   metadata {
-    name      = local.app_serviceaccount
+    name      = local.analytic_serviceaccount
     namespace = local.analytic_server_ns
     annotations = {
-      "eks.amazonaws.com/role-arn" = aws_iam_role.app_irsa.arn
+      "eks.amazonaws.com/role-arn" = aws_iam_role.analytic_server_irsa.arn
     }
   }
   depends_on = [kubernetes_namespace.sapio_analytic_server]
+}
+
+### Sapio BLS IRSA And Service Account ###
+resource "aws_iam_role" "app_irsa" {
+  name               = "app-${local.prefix_env}-irsa"
+  assume_role_policy = data.aws_iam_policy_document.service_account_trust_policy.json
+}
+
+# Attach S3 to EXISTING IRSA role, but only for the Sapio BLS IRSA not analytic server.
+resource "aws_iam_role_policy_attachment" "app_irsa_bucket_access" {
+  role       = aws_iam_role.app_irsa.name
+  policy_arn = aws_iam_policy.bucket_policy.arn
 }
 
 resource "kubernetes_service_account_v1" "sapio_account" {
@@ -75,5 +88,5 @@ resource "kubernetes_service_account_v1" "sapio_account" {
       "eks.amazonaws.com/role-arn" = aws_iam_role.app_irsa.arn
     }
   }
-  depends_on = [kubernetes_namespace.sapio]
+  depends_on = [kubernetes_namespace.sapio, aws_iam_role_policy_attachment.app_irsa_bucket_access]
 }

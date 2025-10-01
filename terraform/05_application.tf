@@ -31,6 +31,15 @@ locals {
   jdbc_url_suffix = "?trustServerCertificate=true&allowPublicKeyRetrieval=true"
 
   java_security_dir  = "/opt/java/openjdk/lib/security"
+  app1_env_value = <<-EOF
+TextSearchServerType=elasticsearch
+TextSearchUrl=https://${local.es_release_name}-es-http.${local.es_namespace}.svc.cluster.local:9200
+TextSearchUsername=${local.es_app_user}
+TextSearchPassword=${random_password.sapio_elasticsearch.result}
+AttachmentStorageType=amazons3
+AttachmentStorageLocation=${local.s3_bucket_name}
+AttachmentAWSRegion=${var.aws_region}
+EOF
   build_trust_script = <<-EOS
 set -eu
 
@@ -134,8 +143,8 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
         node_selector = {
           "eks.amazonaws.com/compute-type" = "auto"
         }
-        service_account_name = local.app_serviceaccount
-
+        service_account_name = local.analytic_serviceaccount
+        automount_service_account_token = true
 
         init_container {
           name    = "augment-trust"
@@ -482,6 +491,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
       spec {
         #YQ: The BLS does not have autoscale capability, so we will directly expose without a service.
         service_account_name = local.app_serviceaccount
+        automount_service_account_token = true
         node_selector = {
           "sapio/pool" = "sapio-bls"
         }
@@ -541,11 +551,6 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           image = var.sapio_bls_docker_image
           name  = "${local.sapio_bls_app_name}-sapio-app-pod"
           port {
-            container_port = 22
-            name           = "ssh"
-            protocol       = "TCP"
-          }
-          port {
             container_port = 8443
             name           = "https"
             protocol       = "TCP"
@@ -581,28 +586,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
             }
           }
 
-          # Elasticsearch connection details
-          env {
-            name  = "ES_URL"
-            value = "https://${local.es_release_name}-es-http.${local.es_namespace}.svc.cluster.local:9200"
-          }
-          env {
-            name  = "ES_USER"
-            value = local.es_app_user
-          }
-          env {
-            name = "ES_PASS"
-            value_from {
-              secret_key_ref {
-                name = local.es_app_secret_name
-                key  = "password"
-              }
-            }
-          }
-          env {
-            name  = "ES_CA_CERT"
-            value = "/certificates/ca.crt"
-          }
+
           # Add environment variable using Kubernetes Downward API to get node name
           env {
             name = "NODE_NAME"
@@ -664,6 +648,14 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           env {
             name  = "APP_1_DB_URL"
             value = "${local.jdbc_url_root}sapio_app1${local.jdbc_url_suffix}"
+          }
+          env {
+            name = "APP_1_DB_REPLICA_URL"
+            value = "${local.jdbc_replica_url_root}sapio_app1${local.jdbc_url_suffix}"
+          }
+          env {
+            name = "APP_1_EXT_OPTS"
+            value = local.app1_env_value
           }
           env {
             name  = "APP_1_DB_USER"
@@ -822,7 +814,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
   # See https://github.com/setheliot/eks_auto_mode/blob/main/docs/separate_configs.md
   depends_on = [module.eks, kubernetes_service_v1.mysql_writer_svc_sapio, kubernetes_service_v1.mysql_replica_svc_sapio,
     kubernetes_job_v1.es_bootstrap_app_user, kubernetes_service_account_v1.sapio_account,
-    aws_eks_addon.vpc_cni, kubernetes_secret_v1.es_ca_for_sapio]
+    aws_eks_addon.vpc_cni, kubernetes_secret_v1.es_ca_for_sapio, aws_s3_bucket.cluster_bucket]
 }
 
 resource "kubernetes_network_policy_v1" "sapio_allow_egress_all" {
@@ -847,11 +839,22 @@ resource "kubernetes_service_v1" "sapio_bls_nlb" {
     annotations = {
       "service.beta.kubernetes.io/aws-load-balancer-scheme"          = "internet-facing"
       # Health check on the same port clients use
-      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol" = "TCP"
-      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-port"     = "traffic-port"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol": "HTTP"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-port": "8088"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-path": "/status/healthcheck"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval"  = "10"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-timeout"   = "6"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-healthy-threshold"   = "2"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-unhealthy-threshold" = "2"
+      # Faster cutover on rollouts
+      "service.beta.kubernetes.io/aws-load-balancer-target-group-attributes" = "deregistration_delay.timeout_seconds=15"
 
       # Tell AWS LB Controller to create an NLB and target pod IPs directly
       "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type" = "ip"
+
+      # Security
+      "service.beta.kubernetes.io/aws-load-balancer-security-groups" =  aws_security_group.sapio_nlb_frontend.id
+      "service.beta.kubernetes.io/aws-load-balancer-manage-backend-security-group-rules" = "true"
     }
   }
   spec {
@@ -876,12 +879,6 @@ resource "kubernetes_service_v1" "sapio_bls_nlb" {
       port        = 5005
       target_port = 5005
       protocol    = "TCP"
-    }
-    port {
-      name = "ssh"
-      port = 22
-      target_port = 22
-      protocol = "TCP"
     }
   }
   depends_on = [kubernetes_deployment_v1.sapio_app_deployment]

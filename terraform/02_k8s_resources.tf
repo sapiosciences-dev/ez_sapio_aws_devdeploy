@@ -41,3 +41,31 @@ resource "kubernetes_storage_class" "ebs_gp3" {
   # See https://github.com/setheliot/eks_auto_mode/blob/main/docs/separate_configs.md
   depends_on = [module.eks]
 }
+
+# SG with restricted inbound for NLB listeners
+resource "aws_security_group" "sapio_nlb_frontend" {
+  name   = "${local.prefix_env}-sapio-nlb-frontend"
+  vpc_id = module.vpc.vpc_id
+
+  ingress {
+    description     = "Allow EKS Nodes to access VPC Endpoints"
+    from_port       = 8443
+    to_port         = 8443
+    protocol        = "tcp"
+    cidr_blocks     = var.user_cidr_blocks
+  }
+  ingress {
+    description = "Allow Debug" # Note: Debug is not serviced to Sapio BLS by default.
+    from_port   = 5005
+    to_port     = 5005
+    protocol    = "tcp"
+    cidr_blocks = var.admin_cidr_blocks
+  }
+  ingress {
+    description = "Allow RMI"
+    from_port   = 1099
+    to_port     = 1099
+    protocol    = "tcp"
+    cidr_blocks = var.admin_cidr_blocks
+  }
+}
