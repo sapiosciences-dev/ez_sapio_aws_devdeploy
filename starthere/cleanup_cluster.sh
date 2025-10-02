@@ -100,6 +100,7 @@ echo "✅ Using Terraform workspace [$ENV_NAME]"
 echo "🏃 1 of 3 - Running terraform destroy on kubernetes_deployment_v1..."
 
 terraform destroy \
+    -auto-approve \
     -target=kubernetes_deployment_v1.sapio_app_deployment \
     -target=kubernetes_deployment_v1.analytic_server_deployment \
     -target=helm_release.cert_manager \
@@ -121,17 +122,24 @@ terraform destroy \
 echo "✅ kubernetes_deployment_v1 deleted"
 
 echo "🏃 2 of 3 - Running terraform volumes and elasticsearch"
+terraform destroy \
+    -auto-approve \
+    -target=null_resource.eck_remove_finalizers \
+    -target=null_resource.eck_force_delete_pods \
+    -var-file="$TFVARS_FILE"
 
 terraform destroy \
+    -auto-approve \
     -target=kubernetes_persistent_volume_claim_v1.sapio_ebs_pvc \
     -target=kubectl_manifest.elasticsearch_eck \
-    -var-file=$TFVARS_FILE
+    -var-file="$TFVARS_FILE"
 
 echo "✅ kubernetes_persistent_volume_claim_v1 deleted"
 
 echo "🏃 3 of 3 - Running terraform destroy on all remaining resources..."
 
 terraform destroy \
-    -var-file=$TFVARS_FILE
+    -auto-approve \
+    -var-file="$TFVARS_FILE"
 
 echo "✅✅✅ All resources deleted"

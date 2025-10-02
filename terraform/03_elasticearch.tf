@@ -276,7 +276,7 @@ resource "kubernetes_job_v1" "es_bootstrap_app_user" {
               "cluster": ["monitor"],
               "indices": [{
                 "names": ["'"$ES_INDEX_PATTERN"'"],
-                "privileges": ["create_index","write","create","index","read","view_index_metadata"]
+                "privileges": ["create_index","write","create","index","read","view_index_metadata","maintenance"]
               }]
             }' >/dev/stdout 2>&1 || { log "Failed to upsert role"; exit 1; }
 
