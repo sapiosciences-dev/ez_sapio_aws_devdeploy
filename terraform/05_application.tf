@@ -195,16 +195,6 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
             }
           }
 
-          # Helpful for Python/Requests (harmless if unused)
-          env {
-            name = "SSL_CERT_FILE"
-            value = "/certs/cacert-plus.pem"
-          }
-          env {
-            name = "REQUESTS_CA_BUNDLE"
-            value = "/certs/cacert-plus.pem"
-          }
-
           env {
             name = "COMPATIBILITY_MODE"
             value = "true"
@@ -655,16 +645,6 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           volume_mount {
             name       = "ebs-k8s-attached-storage"
             mount_path = "/data" # Not sure what data we want to push if the license file is in the container as SERVER_LICENSE base64 env.
-          }
-
-          # Helpful for Python/Requests (harmless if unused)
-          env {
-            name = "SSL_CERT_FILE"
-            value = "/certs/cacert-plus.pem"
-          }
-          env {
-            name = "REQUESTS_CA_BUNDLE"
-            value = "/certs/cacert-plus.pem"
           }
 
           # common init mounts to share filesystem.
