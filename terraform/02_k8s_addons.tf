@@ -187,7 +187,7 @@ resource "kubernetes_storage_class" "custom_gp3" {
 resource "kubernetes_persistent_volume_claim_v1" "sapio_ebs_pvc" {
   metadata {
     name = local.ebs_sapio_app_data_claim_name
-    namespace = local.sapio_ns
+    namespace = kubernetes_namespace.sapio.metadata[0].name
   }
 
   spec {
@@ -220,7 +220,7 @@ resource "kubernetes_persistent_volume_claim_v1" "sapio_ebs_pvc" {
 resource "kubernetes_network_policy_v1" "coredns_allow_ingress" {
   metadata {
     name      = "coredns-allow-ingress"
-    namespace = "kube-system"
+    namespace = kubernetes_namespace.sapio.metadata[0].name
   }
   spec {
     pod_selector {
@@ -243,7 +243,7 @@ resource "kubernetes_network_policy_v1" "coredns_allow_ingress" {
 resource "kubernetes_network_policy_v1" "coredns_allow_egress" {
   metadata {
     name      = "coredns-allow-egress"
-    namespace = "kube-system"
+    namespace = kubernetes_namespace.sapio.metadata[0].name
   }
   spec {
     pod_selector {

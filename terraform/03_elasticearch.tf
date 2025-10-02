@@ -188,6 +188,7 @@ resource "null_resource" "wait_for_es_ca" {
   provisioner "local-exec" {
     command = <<-EOT
             set -e
+      aws eks update-kubeconfig --region ${var.aws_region} --name ${local.cluster_name}
       for i in $(seq 1 120); do
         if kubectl get secret ${local.es_release_name}-es-http-ca-internal -n ${local.es_namespace} >/dev/null 2>&1; then
           exit 0
@@ -428,4 +429,65 @@ resource "kubernetes_secret_v1" "es_ca_for_as" {
   }
   type = "Opaque"
   data = { "ca.crt" = data.kubernetes_secret.es_http_ca.data["ca.crt"] }
+}
+
+## Destroy modifier
+# Remove finalizers so the CR won't block deletion
+resource "null_resource" "eck_remove_finalizers" {
+  # Put values you need into triggers so they become part of "self"
+  triggers = {
+    es_name = local.es_release_name
+    es_ns   = local.es_namespace
+    aws_region = var.aws_region
+    cluster_name = local.cluster_name
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<EOT
+set -euo pipefail
+aws eks update-kubeconfig --region ${self.triggers.aws_region} --name ${self.triggers.cluster_name}
+kubectl patch elasticsearch.elasticsearch.k8s.elastic.co ${self.triggers.es_name} \
+  -n ${self.triggers.es_ns} \
+  --type=merge \
+  -p '{"metadata":{"finalizers":[]}}' || true
+EOT
+  }
+
+  # keep if you want this to run while the CR still exists
+  depends_on = [kubectl_manifest.elasticsearch_eck]
+}
+
+# Force delete pods/STS/PVCs on destroy
+resource "null_resource" "eck_force_delete_pods" {
+  triggers = {
+    es_name = local.es_release_name
+    es_ns   = local.es_namespace
+    sel     = "elasticsearch.k8s.elastic.co/cluster-name=${local.es_release_name}"
+    aws_region = var.aws_region
+    cluster_name = local.cluster_name
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<EOT
+set -euo pipefail
+aws eks update-kubeconfig --region ${self.triggers.aws_region} --name ${self.triggers.cluster_name}
+SEL='${self.triggers.sel}'
+
+# Kill pods immediately
+kubectl delete pod -n ${self.triggers.es_ns} -l "$SEL" --force --grace-period=0 --ignore-not-found || true
+
+# Drop StatefulSets without waiting on pods (we just killed them)
+kubectl delete statefulset -n ${self.triggers.es_ns} -l "$SEL" --cascade=orphan --ignore-not-found || true
+
+# Remove PVCs so PVs/EBS can be cleaned up (if reclaimPolicy=Delete)
+kubectl delete pvc -n ${self.triggers.es_ns} -l "$SEL" --ignore-not-found || true
+EOT
+  }
+
+  depends_on = [
+    kubectl_manifest.elasticsearch_eck,
+    null_resource.eck_remove_finalizers
+  ]
 }

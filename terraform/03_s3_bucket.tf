@@ -5,15 +5,13 @@
 
 # If you're using terraform-aws-modules/eks, this output exists:
 # module.eks.cluster_oidc_issuer_url  (e.g., "https://oidc.eks.us-east-1.amazonaws.com/id/XXXX")
-data "aws_iam_openid_connect_provider" "this" {
+data "tls_certificate" "oidc" {
   url = module.eks.cluster_oidc_issuer_url
 }
 
 locals {
   # Ensure global uniqueness while still "using local.cluster_name"
   s3_bucket_name = "${local.cluster_name}-${data.aws_caller_identity.current.account_id}"
-  # The string Amazon uses in trust policy conditions (issuer host/path w/o https://)
-  oidc_provider = replace(data.aws_iam_openid_connect_provider.this.url, "https://", "")
 }
 
 ############################
@@ -22,6 +20,7 @@ locals {
 
 resource "aws_s3_bucket" "cluster_bucket" {
   bucket = local.s3_bucket_name
+  force_destroy = true # Allow delete of non-empty buckets for destroy operation without eviction.
 
   tags = {
     Name        = local.s3_bucket_name
@@ -155,20 +154,20 @@ data "aws_iam_policy_document" "irsa_trust" {
 
     principals {
       type        = "Federated"
-      identifiers = [data.aws_iam_openid_connect_provider.this.arn]
+      identifiers = [module.eks.oidc_provider_arn]
     }
 
     condition {
       test     = "StringEquals"
       # Restrict to this exact service account
-      variable = "${local.oidc_provider}:sub"
+      variable = "${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}:sub"
       values   = ["system:serviceaccount:${local.sapio_ns}:${local.app_serviceaccount}"]
     }
 
     # (Good practice) also require the audience
     condition {
       test     = "StringEquals"
-      variable = "${local.oidc_provider}:aud"
+      variable = "${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}:aud"
       values   = ["sts.amazonaws.com"]
     }
   }

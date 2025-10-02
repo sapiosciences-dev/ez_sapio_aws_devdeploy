@@ -29,13 +29,13 @@ locals {
   jdbc_url_root = "jdbc:mysql://${kubernetes_service_v1.mysql_writer_svc_sapio.metadata[0].name}.${local.sapio_ns}.svc.cluster.local:${aws_db_instance.sapio_mysql.port}/"
   jdbc_replica_url_root = "jdbc:mysql://${kubernetes_service_v1.mysql_replica_svc_sapio.metadata[0].name}.${local.sapio_ns}.svc.cluster.local:${aws_db_instance.sapio_mysql.port}/"
   jdbc_url_suffix = "?trustServerCertificate=true&allowPublicKeyRetrieval=true"
+  sql_velox_portal_user = "sapio_portal"
 
   java_security_dir  = "/opt/java/openjdk/lib/security"
+  velox_app1_user = "sapio_app1"
   app1_env_value = <<-EOF
 TextSearchServerType=elasticsearch
 TextSearchUrl=https://${local.es_release_name}-es-http.${local.es_namespace}.svc.cluster.local:9200
-TextSearchUsername=${local.es_app_user}
-TextSearchPassword=${random_password.sapio_elasticsearch.result}
 AttachmentStorageType=amazons3
 AttachmentStorageLocation=${local.s3_bucket_name}
 AttachmentAWSRegion=${var.aws_region}
@@ -82,27 +82,7 @@ if [ -d "$K8S_JAVA_SECURITY_DIR" ]; then
     fi
   fi
 fi
-
-# 3) Python/Requests combined PEM = certifi + your CA (fallback to OS bundle)
-mkdir -p /certs
-if command -v python3 >/dev/null 2>&1; then
-  pycacert="$(python3 -c 'import certifi,sys; print(certifi.where() if hasattr(certifi,"where") else "")' 2>/dev/null || true)"
-  if [ -n "$pycacert" ] && [ -r "$pycacert" ]; then
-    cat "$pycacert" "/usr/local/share/ca-certificates/es-ca.crt" > "/certs/cacert-plus.pem"
-  elif [ -r "/etc/ssl/certs/ca-certificates.crt" ]; then
-    cat "/etc/ssl/certs/ca-certificates.crt" "/usr/local/share/ca-certificates/es-ca.crt" > "/certs/cacert-plus.pem"
-  else
-    cp "/usr/local/share/ca-certificates/es-ca.crt" "/certs/cacert-plus.pem"
-  fi
-else
-  if [ -r "/etc/ssl/certs/ca-certificates.crt" ]; then
-    cat "/etc/ssl/certs/ca-certificates.crt" "/usr/local/share/ca-certificates/es-ca.crt" > "/certs/cacert-plus.pem"
-  else
-    cp "/usr/local/share/ca-certificates/es-ca.crt" "/certs/cacert-plus.pem"
-  fi
-fi
-  EOS
-
+EOS
 }
 
 ###############################
@@ -191,10 +171,6 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
             name = "jdk-security"
             mount_path = "/work/jdk-security"
           }
-          volume_mount {
-            name = "py-bundle"
-            mount_path = "/certs"
-          }
         }
 
         container {
@@ -272,10 +248,6 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
             name = "jdk-security"
             mount_path = "/work/jdk-security"
           }
-          volume_mount {
-            name = "py-bundle"
-            mount_path = "/certs"
-          }
         } # container
         volume {
           name = "internal-ca"
@@ -295,10 +267,6 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
           name = "jdk-security"
           empty_dir {}
         }   # JDK security dir (copied + CA)
-        volume {
-          name = "py-bundle"
-          empty_dir {}
-        }   # Combined PEM for Python
 
         # Spread across zones/nodes for resilience
         topology_spread_constraint {
@@ -426,7 +394,7 @@ resource "kubernetes_secret_v1" "mysql_portal_creds" {
     namespace = local.sapio_ns # only sapio app namespace pods can read this secret.
   }
   data = {
-    username = local.sql_root_user
+    username = local.sql_velox_portal_user
     password = random_password.sapio_mysql_portal.result
   }
   type = "Opaque"
@@ -443,7 +411,7 @@ resource "kubernetes_secret_v1" "mysql_app1_creds" {
     namespace = local.sapio_ns # only sapio app namespace pods can read this secret.
   }
   data = {
-    username = local.sql_root_user
+    username = local.velox_app1_user
     password = random_password.sapio_mysql_app1.result
   }
   type = "Opaque"
@@ -541,10 +509,6 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
             name = "jdk-security"
             mount_path = "/work/jdk-security"
           }
-          volume_mount {
-            name = "py-bundle"
-            mount_path = "/certs"
-          }
         }
 
         container {
@@ -608,34 +572,8 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
             value = "${local.jdbc_url_root}${local.jdbc_url_suffix}"
           }
           env {
-            name  = "ROOT_DB_USER"
-            value = "sapio"
-          }
-          env {
-            name = "ROOT_DB_PASS"
-            value_from {
-              secret_key_ref {
-                name = kubernetes_secret_v1.mysql_root_creds.metadata[0].name
-                key  = "password"
-              }
-            }
-          }
-          env {
             name  = "PORTAL_DB_URL"
             value = "${local.jdbc_url_root}sapio_portal${local.jdbc_url_suffix}"
-          }
-          env {
-            name  = "PORTAL_DB_USER"
-            value = "sapio_portal"
-          }
-          env {
-            name  = "PORTAL_DB_PASS"
-            value_from {
-              secret_key_ref {
-                name = kubernetes_secret_v1.mysql_portal_creds.metadata[0].name
-                key  = "password"
-              }
-            }
           }
           env {
             name  = "APP_COUNT"
@@ -656,19 +594,6 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           env {
             name = "APP_1_EXT_OPTS"
             value = local.app1_env_value
-          }
-          env {
-            name  = "APP_1_DB_USER"
-            value = "sapio_app1"
-          }
-          env {
-            name  = "APP_1_DB_PASS"
-            value_from {
-              secret_key_ref {
-                name = kubernetes_secret_v1.mysql_app1_creds.metadata[0].name
-                key  = "password"
-              }
-            }
           }
           env {
             name  = "VELOXSERVER_DEBUG_ENABLED"
@@ -759,11 +684,6 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
             mount_path = local.java_security_dir
             read_only = true
           }
-          volume_mount {
-            name = "py-bundle"
-            mount_path = "/certs"
-            read_only = true
-          }
         }
         #container
         # Volumes
@@ -786,10 +706,6 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           name = "jdk-security"
           empty_dir {}
         }   # JDK security dir (copied + CA)
-        volume {
-          name = "py-bundle"
-          empty_dir {}
-        }   # Combined PEM for Python
         # Define the volume using the PVC
         volume {
           name = "ebs-k8s-attached-storage"
@@ -820,7 +736,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
 resource "kubernetes_network_policy_v1" "sapio_allow_egress_all" {
   metadata {
     name      = "allow-egress-all-sapio"
-    namespace = local.sapio_ns
+    namespace = kubernetes_namespace.sapio.metadata[0].name
   }
   spec {
     pod_selector {}

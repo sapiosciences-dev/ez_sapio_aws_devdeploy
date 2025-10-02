@@ -90,3 +90,34 @@ resource "kubernetes_service_account_v1" "sapio_account" {
   }
   depends_on = [kubernetes_namespace.sapio, aws_iam_role_policy_attachment.app_irsa_bucket_access]
 }
+
+# Create a role to read "sapio" namespaced secret
+resource "kubernetes_role" "sapio_secret_reader" {
+  metadata {
+    name      = "sapio-secret-reader"
+    namespace = kubernetes_namespace.sapio.metadata[0].name
+  }
+  rule {
+    api_groups = [""]
+    resources  = ["secrets"]
+    verbs      = ["get", "list"]
+  }
+}
+
+# Assign the sapio namespace reader role to sapio app service account, so Sapio BLS can read "sapio" namespaced secrets.
+resource "kubernetes_role_binding" "sapio_secret_reader_binding" {
+  metadata {
+    name      = "sapio-secret-reader-binding"
+    namespace = kubernetes_namespace.sapio.metadata[0].name
+  }
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "Role"
+    name      = kubernetes_role.sapio_secret_reader.metadata[0].name
+  }
+  subject {
+    kind      = "ServiceAccount"
+    name      = local.app_serviceaccount
+    namespace = kubernetes_namespace.sapio.metadata[0].name
+  }
+}
