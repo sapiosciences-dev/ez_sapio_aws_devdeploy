@@ -39,6 +39,7 @@ resource "helm_release" "eck_operator" {
   wait             = true
 
   timeout = 1200
+  depends_on = [kubernetes_namespace.elastic_system]
 }
 
 # ECK creates TLS + the `elastic` user secret automatically for this CR
