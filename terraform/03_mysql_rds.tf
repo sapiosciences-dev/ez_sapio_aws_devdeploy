@@ -176,6 +176,7 @@ resource "aws_db_instance" "sapio_mysql_replica" {
   publicly_accessible    = false
   apply_immediately      = true
   skip_final_snapshot    = var.mysql_skip_final_snapshot
+  iam_database_authentication_enabled = true
   # Note: For MySQL (non-Aurora), each replica has its own endpoint.
 
   tags = {

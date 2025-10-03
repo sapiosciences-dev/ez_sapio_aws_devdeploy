@@ -52,7 +52,7 @@ fi
 
 
 echo -e "\n=============================================================="
-echo "😎 Let's create an Amazon EKS Cluster with Auto Mode ENABLED"
+echo "🚧 Sapio Application EKS Stack Infrastructure Deployment"
 echo -e "==============================================================\n"
 
 # Check if AWS CLI is installed

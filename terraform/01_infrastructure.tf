@@ -62,15 +62,23 @@ module "vpc" {
 #
 # EKS Cluster using Auto Mode
 module "eks" {
-
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 20.37"   # latest 20.x
+  version = "~> 21.0"   # latest 20.x
 
-  cluster_name    = local.cluster_name
-  cluster_version = local.cluster_version
+  timeouts = {
+    delete = "120m"
+    create = "120m"
+  }
+  addons_timeouts = {
+    delete = "120m"
+    create = "120m"
+  }
 
-  cluster_endpoint_public_access  = true
-  cluster_endpoint_private_access = false
+  name    = local.cluster_name
+  kubernetes_version = local.cluster_version
+
+  endpoint_public_access  = true
+  endpoint_private_access = false
 
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
@@ -78,7 +86,7 @@ module "eks" {
   # *** AWS EKS Auto Mode is enabled here ***
   # Auto compute, storage, and load balancing are enabled here
   # This replaces the more complex eks_managed_node_groups block
-  cluster_compute_config = {
+  compute_config = {
     enabled    = true
     node_pools = ["general-purpose", "system"]
   }

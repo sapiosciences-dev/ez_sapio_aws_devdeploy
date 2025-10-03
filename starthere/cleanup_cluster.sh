@@ -97,7 +97,7 @@ echo "✅ Using Terraform workspace [$ENV_NAME]"
 
 
 # Run Terraform destroy commands
-echo "🏃 1 of 3 - Running terraform destroy on kubernetes_deployment_v1..."
+echo "🏃 1 of 2 - Running terraform destroy on kubernetes_deployment_v1..."
 
 terraform destroy \
     -auto-approve \
@@ -111,15 +111,7 @@ terraform destroy \
 
 echo "✅ Step 1 deployments deleted"
 
-echo "🏃 2 of 3 - Running terraform volumes and elasticsearch"
-terraform destroy \
-    -auto-approve \
-    -target=null_resource.eck_force_delete_pods \
-    -var-file="$TFVARS_FILE"
-
-echo "✅ Step 2 Elasticsearch deleted"
-
-echo "🏃 3 of 3 - Running terraform destroy on all remaining resources..."
+echo "🏃 2 of 2 - Running terraform destroy on all remaining resources..."
 
 terraform destroy \
     -auto-approve \

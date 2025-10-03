@@ -27,6 +27,11 @@ resource "aws_eks_addon" "node_monitoring_manual_pool" {
 
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"
+
+  timeouts {
+    create = "60m"
+    delete = "60m"
+  }
 }
 
 # ID Agent
@@ -35,6 +40,11 @@ resource "aws_eks_addon" "pod_identity_agent" {
   addon_name        = "eks-pod-identity-agent"
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "PRESERVE"
+
+  timeouts {
+    create = "60m"
+    delete = "60m"
+  }
 }
 
 # VPC CNI
@@ -57,6 +67,11 @@ resource "aws_eks_addon" "vpc_cni" {
     }
   })
   depends_on = [aws_eks_addon.pod_identity_agent]
+
+  timeouts {
+    create = "60m"
+    delete = "60m"
+  }
 }
 
 # kube-proxy (managed by EKS, but good to pin/ensure present)
@@ -66,6 +81,11 @@ resource "aws_eks_addon" "kube_proxy" {
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "PRESERVE"
   depends_on = [aws_eks_addon.pod_identity_agent]
+
+  timeouts {
+    create = "60m"
+    delete = "60m"
+  }
 }
 
 # CoreDNS
@@ -84,6 +104,11 @@ resource "aws_eks_addon" "coredns" {
   })
 
   depends_on = [aws_eks_addon.pod_identity_agent]
+
+  timeouts {
+    create = "60m"
+    delete = "60m"
+  }
 }
 
 # Create an IAM role the CNI will use

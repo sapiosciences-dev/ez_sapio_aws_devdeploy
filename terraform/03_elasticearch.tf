@@ -34,6 +34,8 @@ resource "helm_release" "eck_operator" {
   namespace        = kubernetes_namespace.elastic_system.metadata[0].name
   create_namespace = false
   wait             = true
+
+  timeout = 1200
 }
 
 # ECK creates TLS + the `elastic` user secret automatically for this CR
@@ -213,7 +215,6 @@ resource "kubernetes_job_v1" "es_bootstrap_app_user" {
       metadata { labels = { job = "es-bootstrap-app-user" } }
       spec {
         dns_policy    = "ClusterFirst"
-        # restart_policy = "Never" # This line when debugging the job.
         restart_policy = "Never"
         node_selector = {
           "eks.amazonaws.com/compute-type" = "auto"
@@ -237,25 +238,43 @@ app_user="$APP_USER"
 app_pw="$(cat /app/user_pw)"
 cacert="/ca/ca.crt"
 
-CURL_BASE="--cacert $cacert -u $auth_user -H Content-Type:application/json --connect-timeout 5 --max-time 20 --retry 3 --retry-all-errors"
-http() { curl -sS --fail $CURL_BASE "$@"; }
-code() { curl -sS -o /dev/null -w "%%{http_code}" $CURL_BASE "$@"; }
+# Quick sanity checks
+[ -s "$cacert" ] || { log "Missing CA cert at $cacert"; exit 1; }
+[ -n "$app_user" ] || { log "APP_USER empty"; exit 1; }
+
+# Curl presets: short for reads, longer for writes; disable Expect: 100-continue
+CURL_READ="--cacert $cacert -u $auth_user -H Content-Type:application/json --connect-timeout 5 --max-time 20 --retry 3 --retry-all-errors --http1.1"
+CURL_WRITE="--cacert $cacert -u $auth_user -H Content-Type:application/json -H Expect: --connect-timeout 5 --max-time 90 --retry 1200 --retry-delay 5 --retry-all-errors --http1.1"
+
+http() { curl -sS --fail $CURL_READ "$@"; }
+httpw(){ curl -sS --fail $CURL_WRITE "$@"; }
+code() { curl -sS -o /dev/null -w "%%{http_code}" $CURL_READ "$@"; }
 
 log "Bootstrap starting; target=$fqdn"
 
-tries=120
-i=0
+# Wait until auth works (ES up + certs valid)
+tries=600 i=0 c=""
 while [ $i -lt $tries ]; do
   i=$((i+1))
   c="$(code -XGET "$base/_security/_authenticate" || true)"
-  log "Probe $i/$tries -> HTTP $c"
+  log "Probe $i/$tries -> /_security/_authenticate HTTP $c"
   [ "$c" = "200" ] && break
   sleep 5
 done
 [ "$c" = "200" ] || { log "Elasticsearch not ready after $tries attempts (last=$c)"; exit 1; }
 
+# Wait for cluster to reach at least yellow (shards can allocate)
+i=0 h=""
+while [ $i -lt 600 ]; do
+  i=$((i+1))
+  h="$(code -XGET "$base/_cluster/health?wait_for_status=yellow&timeout=10s" || true)"
+  [ "$h" = "200" ] && break
+  log "cluster health not yellow yet (try $i)"; sleep 5
+done
+[ "$h" = "200" ] || { log "cluster did not reach yellow"; exit 1; }
+
 log "Upserting role app_writer"
-http -XPUT "$base/_security/role/app_writer" -d '{
+httpw -XPUT "$base/_security/role/app_writer" -d '{
   "cluster": ["monitor"],
   "indices": [{
     "names": ["'"$ES_INDEX_PATTERN"'"],
@@ -264,11 +283,11 @@ http -XPUT "$base/_security/role/app_writer" -d '{
 }'
 
 log "Checking user $app_user"
-ucode="$(code -XGET "$base/_security/user/$app_user" || true)"
+ucode="$(curl -sS -o /dev/null -w "%%{http_code}" $CURL_READ -XGET "$base/_security/user/$app_user" || true)"
 if [ "$ucode" = "200" ]; then
-  http -XPUT "$base/_security/user/$app_user" -d '{"roles":["app_writer"]}'
+  httpw -XPUT "$base/_security/user/$app_user" -d '{"roles":["app_writer"]}'
 elif [ "$ucode" = "404" ]; then
-  http -XPUT "$base/_security/user/$app_user" -d '{"password":"'"$app_pw"'","roles":["app_writer"]}'
+  httpw -XPUT "$base/_security/user/$app_user" -d '{"password":"'"$app_pw"'","roles":["app_writer"]}'
 else
   log "Unexpected user check HTTP $ucode"; exit 1
 fi
@@ -346,6 +365,10 @@ exit 0
         }
       }
     }
+  }
+
+  timeouts {
+    create = "30m"
   }
 
   depends_on = [kubectl_manifest.elasticsearch_eck, null_resource.wait_for_es_ca]
