@@ -217,7 +217,6 @@ resource "kubernetes_job_v1" "es_bootstrap_app_user" {
     template {
       metadata { labels = { job = "es-bootstrap-app-user" } }
       spec {
-        dns_policy    = "ClusterFirst"
         restart_policy = "Never"
         node_selector = {
           "eks.amazonaws.com/compute-type" = "auto"
