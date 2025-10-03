@@ -39,6 +39,10 @@ Copy the policy to clipboard. Alternatively, download the policy using SFTP clie
 >
 > To run a script, you can right-click it from Remote Development IDE project tree on the left, and then click the "Run" button.
 
+> 💡 TIP
+> 
+> If you see a screen with GUI but without a mouse device in pycharm/intellij to interactive with the console GUI, you can use tab to navigate it within the terminal window.
+
 ## Client UI Workspace
 1. Download PyCharm or IntelliJ Idea Community Edition.
 2. Click "File => Remote Development".
