@@ -24,6 +24,9 @@ locals {
 # ECK Operator, not elasticsearch.
 resource "kubernetes_namespace" "elastic_system" {
   metadata { name = "elastic-system" }
+  timeouts {
+    delete = "30m"
+  }
 }
 
 resource "helm_release" "eck_operator" {
@@ -244,7 +247,7 @@ cacert="/ca/ca.crt"
 
 # Curl presets: short for reads, longer for writes; disable Expect: 100-continue
 CURL_READ="--cacert $cacert -u $auth_user -H Content-Type:application/json --connect-timeout 5 --max-time 20 --retry 3 --retry-all-errors --http1.1"
-CURL_WRITE="--cacert $cacert -u $auth_user -H Content-Type:application/json -H Expect: --connect-timeout 5 --max-time 90 --retry 1200 --retry-delay 5 --retry-all-errors --http1.1"
+CURL_WRITE="--cacert $cacert -u $auth_user -H Content-Type:application/json -H Expect: --connect-timeout 5 --max-time 30 --retry 1200 --retry-delay 5 --retry-all-errors --http1.1"
 
 http() { curl -sS --fail $CURL_READ "$@"; }
 httpw(){ curl -sS --fail $CURL_WRITE "$@"; }
