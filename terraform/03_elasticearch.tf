@@ -25,7 +25,7 @@ locals {
 resource "kubernetes_namespace" "elastic_system" {
   metadata { name = "elastic-system" }
   timeouts {
-    delete = "30m"
+    delete = "45m"
   }
 }
 
