@@ -23,7 +23,7 @@ locals {
 
 # ECK Operator, not elasticsearch.
 resource "kubernetes_namespace" "elastic_system" {
-  metadata { name = "elastic-system" }
+  metadata { name = "eck" }
   timeouts {
     delete = "45m"
   }
