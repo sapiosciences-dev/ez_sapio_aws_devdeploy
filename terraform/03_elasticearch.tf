@@ -208,14 +208,13 @@ resource "kubernetes_job_v1" "es_bootstrap_app_user" {
     namespace = local.es_namespace
   }
   spec {
-    backoff_limit = 4
     # backoff_limit = 0 # This line when debugging the job.
     template {
       metadata { labels = { job = "es-bootstrap-app-user" } }
       spec {
         dns_policy    = "ClusterFirst"
         # restart_policy = "Never" # This line when debugging the job.
-        restart_policy = "OnFailure"
+        restart_policy = "Never"
         node_selector = {
           "eks.amazonaws.com/compute-type" = "auto"
         }
@@ -224,80 +223,58 @@ resource "kubernetes_job_v1" "es_bootstrap_app_user" {
           image   = "curlimages/curl:8.10.1"
           command = ["/bin/sh","-c"]
           args = [<<-SCRIPT
-                  set -Eeuo pipefail
-            # show each command as it runs
-            set -x
+set -eu
+# set -x  # uncomment for verbose tracing
 
-            log() { printf '%s %s\n' "$(date -Iseconds)" "$*" >&2; }
+log() { printf '%s %s\n' "$(date -Iseconds)" "$*" >&2; }
 
-            ns="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
-            fqdn="$ES_SERVICE.$ns.svc.cluster.local"
-            base="https://$fqdn:9200"
+ns="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
+fqdn="$ES_SERVICE.$ns.svc.cluster.local"
+base="https://$fqdn:9200"
 
-            auth_user="elastic:$(cat /elastic/elastic_pw)"
-            app_user="$APP_USER"
-            app_pw="$(cat /app/user_pw)"
-            cacert="/ca/ca.crt"
+auth_user="elastic:$(cat /elastic/elastic_pw)"
+app_user="$APP_USER"
+app_pw="$(cat /app/user_pw)"
+cacert="/ca/ca.crt"
 
-            http() { curl -sS --fail --cacert "$cacert" -u "$auth_user" -H 'Content-Type: application/json' "$@"; }
-            code() { curl -sS -o /dev/null -w "%%{http_code}" --cacert "$cacert" -u "$auth_user" -H 'Content-Type: application/json' "$@"; }
+CURL_BASE="--cacert $cacert -u $auth_user -H Content-Type:application/json --connect-timeout 5 --max-time 20 --retry 3 --retry-all-errors"
+http() { curl -sS --fail $CURL_BASE "$@"; }
+code() { curl -sS -o /dev/null -w "%%{http_code}" $CURL_BASE "$@"; }
 
-            log "Bootstrap starting in ns=$ns; target=$fqdn"
+log "Bootstrap starting; target=$fqdn"
 
-            # Quick DNS check so we know WHY it fails if it does
-            if command -v getent >/dev/null 2>&1; then
-              if ! getent hosts "$fqdn" >/dev/null 2>&1; then
-                log "DNS not resolved for $fqdn yet"
-              else
-                log "DNS resolved: $(getent hosts "$fqdn" | tr '\n' ' ')"
-              fi
-            fi
+tries=120
+i=0
+while [ $i -lt $tries ]; do
+  i=$((i+1))
+  c="$(code -XGET "$base/_security/_authenticate" || true)"
+  log "Probe $i/$tries -> HTTP $c"
+  [ "$c" = "200" ] && break
+  sleep 5
+done
+[ "$c" = "200" ] || { log "Elasticsearch not ready after $tries attempts (last=$c)"; exit 1; }
 
-            # Wait for security endpoint; print the HTTP code every attempt
-            tries=120
-            c=""
-            i=0
-            while [ $i -lt $tries ]; do
-              i=$((i+1))
-              c="$(code -XGET "$base/_security/_authenticate" || true)"
-              log "Probe $i/$tries -> /_security/_authenticate returned HTTP $c"
-              [ "$c" = "200" ] && break
-              sleep 5
-            done
-            if [ "$c" != "200" ]; then
-              log "Elasticsearch not ready after $tries attempts (last code=$c)"
-              # One last attempt to print body for debugging
-              curl -sk --cacert "$cacert" -u "$auth_user" "$base" || true
-              exit 1
-            fi
+log "Upserting role app_writer"
+http -XPUT "$base/_security/role/app_writer" -d '{
+  "cluster": ["monitor"],
+  "indices": [{
+    "names": ["'"$ES_INDEX_PATTERN"'"],
+    "privileges": ["create_index","write","create","index","read","view_index_metadata","maintenance"]
+  }]
+}'
 
-            log "Upserting role app_writer (index pattern: $ES_INDEX_PATTERN)"
-            http -XPUT "$base/_security/role/app_writer" -d '{
-              "cluster": ["monitor"],
-              "indices": [{
-                "names": ["'"$ES_INDEX_PATTERN"'"],
-                "privileges": ["create_index","write","create","index","read","view_index_metadata","maintenance"]
-              }]
-            }' >/dev/stdout 2>&1 || { log "Failed to upsert role"; exit 1; }
+log "Checking user $app_user"
+ucode="$(code -XGET "$base/_security/user/$app_user" || true)"
+if [ "$ucode" = "200" ]; then
+  http -XPUT "$base/_security/user/$app_user" -d '{"roles":["app_writer"]}'
+elif [ "$ucode" = "404" ]; then
+  http -XPUT "$base/_security/user/$app_user" -d '{"password":"'"$app_pw"'","roles":["app_writer"]}'
+else
+  log "Unexpected user check HTTP $ucode"; exit 1
+fi
 
-            log "Checking user $app_user"
-            ucode="$(code -XGET "$base/_security/user/$app_user" || true)"
-            log "User lookup returned HTTP $ucode"
-
-            if [ "$ucode" = "200" ]; then
-              log "User exists; updating roles"
-              http -XPUT "$base/_security/user/$app_user" -d '{"roles":["app_writer"]}' >/dev/stdout 2>&1 \
-                || { log "Failed to update user roles"; exit 1; }
-            elif [ "$ucode" = "404" ]; then
-              log "User not found; creating"
-              http -XPUT "$base/_security/user/$app_user" -d '{"password":"'"$app_pw"'","roles":["app_writer"]}' >/dev/stdout 2>&1 \
-                || { log "Failed to create user"; exit 1; }
-            else
-              log "Unexpected user check HTTP $ucode"
-              exit 1
-            fi
-
-            log "Bootstrap complete."
+log "Bootstrap complete."
+exit 0
           SCRIPT
           ]
 
@@ -432,62 +409,48 @@ resource "kubernetes_secret_v1" "es_ca_for_as" {
 }
 
 ## Destroy modifier
-# Remove finalizers so the CR won't block deletion
-resource "null_resource" "eck_remove_finalizers" {
-  # Put values you need into triggers so they become part of "self"
-  triggers = {
-    es_name = local.es_release_name
-    es_ns   = local.es_namespace
-    aws_region = var.aws_region
-    cluster_name = local.cluster_name
-  }
-
-  provisioner "local-exec" {
-    when    = destroy
-    command = <<EOT
-set -euo pipefail
-aws eks update-kubeconfig --region ${self.triggers.aws_region} --name ${self.triggers.cluster_name}
-kubectl patch elasticsearch.elasticsearch.k8s.elastic.co ${self.triggers.es_name} \
-  -n ${self.triggers.es_ns} \
-  --type=merge \
-  -p '{"metadata":{"finalizers":[]}}' || true
-EOT
-  }
-
-  # keep if you want this to run while the CR still exists
-  depends_on = [kubectl_manifest.elasticsearch_eck]
-}
 
 # Force delete pods/STS/PVCs on destroy
 resource "null_resource" "eck_force_delete_pods" {
   triggers = {
-    es_name = local.es_release_name
-    es_ns   = local.es_namespace
-    sel     = "elasticsearch.k8s.elastic.co/cluster-name=${local.es_release_name}"
-    aws_region = var.aws_region
+    es_name      = local.es_release_name
+    es_ns        = local.es_namespace
+    sel          = "elasticsearch.k8s.elastic.co/cluster-name=${local.es_release_name}"
+    aws_region   = var.aws_region
     cluster_name = local.cluster_name
   }
 
   provisioner "local-exec" {
-    when    = destroy
-    command = <<EOT
-set -euo pipefail
-aws eks update-kubeconfig --region ${self.triggers.aws_region} --name ${self.triggers.cluster_name}
+    when        = destroy
+    interpreter = ["/usr/bin/env", "bash", "-lc"]
+    command     = <<EOT
+set -euxo pipefail
+NS='${self.triggers.es_ns}'
 SEL='${self.triggers.sel}'
+KOPTS="--request-timeout=30s"
 
-# Kill pods immediately
-kubectl delete pod -n ${self.triggers.es_ns} -l "$SEL" --force --grace-period=0 --ignore-not-found || true
+aws eks update-kubeconfig --region ${self.triggers.aws_region} --name ${self.triggers.cluster_name}
 
-# Drop StatefulSets without waiting on pods (we just killed them)
-kubectl delete statefulset -n ${self.triggers.es_ns} -l "$SEL" --cascade=orphan --ignore-not-found || true
+echo "1) Remove ES CR finalizers, then delete CR (so operator won't recreate objects)"
+kubectl $KOPTS patch elasticsearch.elasticsearch.k8s.elastic.co ${self.triggers.es_name} -n "$NS" --type=merge -p '{"metadata":{"finalizers":[]}}' || true
+kubectl $KOPTS delete elasticsearch.elasticsearch.k8s.elastic.co ${self.triggers.es_name} -n "$NS" --ignore-not-found --wait=false || true
 
-# Remove PVCs so PVs/EBS can be cleaned up (if reclaimPolicy=Delete)
-kubectl delete pvc -n ${self.triggers.es_ns} -l "$SEL" --ignore-not-found || true
+echo "2) Scale any StatefulSets to 0, then delete them without waiting"
+kubectl -n "$NS" $KOPTS get sts -l "$SEL" -o name | xargs -r -I{} kubectl -n "$NS" $KOPTS scale {} --replicas=0 || true
+kubectl $KOPTS delete statefulset -n "$NS" -l "$SEL" --cascade=orphan --ignore-not-found --wait=false || true
+
+echo "3) Force-delete remaining pods"
+kubectl $KOPTS delete pod -n "$NS" -l "$SEL" --force --grace-period=0 --ignore-not-found --wait=false || true
+
+echo "4) Remove PVC finalizers (if any) and delete PVCs"
+for pvc in $(kubectl -n "$NS" $KOPTS get pvc -l "$SEL" -o name || true); do
+  kubectl -n "$NS" $KOPTS patch "$pvc" --type=merge -p '{"metadata":{"finalizers":[]}}' || true
+done
+kubectl $KOPTS delete pvc -n "$NS" -l "$SEL" --ignore-not-found --wait=false || true
+
+echo "Cleanup complete."
 EOT
   }
 
-  depends_on = [
-    kubectl_manifest.elasticsearch_eck,
-    null_resource.eck_remove_finalizers
-  ]
+  depends_on = [kubectl_manifest.elasticsearch_eck]
 }
