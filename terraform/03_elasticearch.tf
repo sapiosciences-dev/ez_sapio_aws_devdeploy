@@ -37,7 +37,7 @@ resource "helm_release" "eck_operator" {
   version          = "3.1.0"       # check doc/site for newer
   namespace        = kubernetes_namespace.elastic_system.metadata[0].name
   create_namespace = false
-  wait             = true
+  wait             = false
 
   # Send operator pods to EKS Auto Mode nodes
   values = [
