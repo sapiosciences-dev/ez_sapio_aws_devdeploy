@@ -38,6 +38,15 @@ resource "helm_release" "eck_operator" {
   create_namespace = false
   wait             = true
 
+  # Send operator pods to EKS Auto Mode nodes
+  values = [
+    yamlencode({
+      nodeSelector = {
+        "eks.amazonaws.com/compute-type" = "auto"
+      }
+    })
+  ]
+
   timeout = 1200
   depends_on = [kubernetes_namespace.elastic_system]
 }
