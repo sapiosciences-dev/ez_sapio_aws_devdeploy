@@ -27,6 +27,7 @@ resource "kubernetes_namespace" "elastic_system" {
   timeouts {
     delete = "45m"
   }
+  depends_on = [module.eks]
 }
 
 resource "helm_release" "eck_operator" {
