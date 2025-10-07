@@ -1,5 +1,5 @@
 # Sapio Platform version to use
-ARG SAPIO_PLATFORM_VERISON="2025.10.02.2245-1148-yqiao_eksneeds"
+ARG SAPIO_PLATFORM_VERISON="2025.10.06.2015-1148-yqiao_eksneeds"
 
 FROM ubuntu:22.04 AS addons
 

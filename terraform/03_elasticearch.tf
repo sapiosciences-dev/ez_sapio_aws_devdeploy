@@ -22,21 +22,13 @@ locals {
 }
 
 # ECK Operator, not elasticsearch.
-resource "kubernetes_namespace" "elastic_system" {
-  metadata { name = "eck" }
-  timeouts {
-    delete = "45m"
-  }
-  depends_on = [module.eks]
-}
-
 resource "helm_release" "eck_operator" {
   name             = "eck-operator"
   repository       = "https://helm.elastic.co"
   chart            = "eck-operator"
   version          = "3.1.0"       # check doc/site for newer
-  namespace        = kubernetes_namespace.elastic_system.metadata[0].name
-  create_namespace = false
+  namespace        = "eck"
+  create_namespace = true
   wait             = false
 
   # Send operator pods to EKS Auto Mode nodes
@@ -49,7 +41,6 @@ resource "helm_release" "eck_operator" {
   ]
 
   timeout = 1200
-  depends_on = [kubernetes_namespace.elastic_system]
 }
 
 # ECK creates TLS + the `elastic` user secret automatically for this CR
