@@ -223,6 +223,7 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
             initial_delay_seconds = 30
             period_seconds        = 10
           }
+
           # common init mounts to share filesystem.
           volume_mount {
             name       = "internal-ca"
@@ -272,6 +273,39 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
   }
 
   depends_on = [kubernetes_service_account_v1.analytic_server_account, kubernetes_secret_v1.es_ca_for_as]
+}
+
+resource "kubernetes_network_policy_v1" "allow_node_probes" {
+  metadata {
+    name      = "allow-node-probes"
+    namespace = local.analytic_server_ns
+  }
+  spec {
+    pod_selector {
+      match_labels = {
+        app  = local.analytic_server_app_name
+        role = local.analytic_server_ns
+      }
+    }
+    policy_types = ["Ingress"]
+
+    ingress {
+      # Allow kubelet/node IPs to reach port 8686
+      dynamic "from" {
+        for_each = toset(concat(
+          module.vpc.private_subnets_cidr_blocks,
+          module.vpc.public_subnets_cidr_blocks
+        ))
+        content {
+          ip_block { cidr = from.value }
+        }
+      }
+      ports {
+        protocol = "TCP"
+        port     = 8686
+      }
+    }
+  }
 }
 
 #############################################
