@@ -10,11 +10,14 @@ resource "random_password" "sapio_mysql_root" {
   special = false
 }
 
+resource "random_uuid" "rds_final_primary" {}
+
 locals {
   app_serviceaccount = "app-${local.prefix_env}-serviceaccount"
   analytic_serviceaccount = "as-${local.prefix_env}-serviceaccount"
   oidc               = module.eks.oidc_provider
   sql_root_user = "sapio"
+  mysql_final_snapshot_identifier         = lower("${local.prefix_env}-mysql-final-${random_uuid.rds_final_primary.result}")
 }
 
 # --- Subnet group for RDS in your private subnets ---
@@ -153,6 +156,7 @@ resource "aws_db_instance" "sapio_mysql" {
   deletion_protection        = false
   apply_immediately          = true
   skip_final_snapshot        = var.mysql_skip_final_snapshot
+  final_snapshot_identifier = var.mysql_skip_final_snapshot ? null : local.mysql_final_snapshot_identifier
   parameter_group_name       = aws_db_parameter_group.sapio_mysql8.name
   iam_database_authentication_enabled = true # optional: enable IAM DB auth
 
@@ -175,7 +179,7 @@ resource "aws_db_instance" "sapio_mysql_replica" {
   vpc_security_group_ids = [aws_security_group.rds_mysql.id]
   publicly_accessible    = false
   apply_immediately      = true
-  skip_final_snapshot    = var.mysql_skip_final_snapshot
+  skip_final_snapshot    = true
   iam_database_authentication_enabled = true
   # Note: For MySQL (non-Aurora), each replica has its own endpoint.
 

@@ -98,7 +98,8 @@
         "rds:CreateDBInstanceReadReplica","rds:PromoteReadReplica",
         "rds:DescribeDBInstances","rds:ListTagsForResource","rds:AddTagsToResource","rds:RemoveTagsFromResource",
         "rds:CreateDBSubnetGroup","rds:DeleteDBSubnetGroup","rds:ModifyDBSubnetGroup","rds:DescribeDBSubnetGroups",
-        "rds:CreateDBParameterGroup","rds:DeleteDBParameterGroup","rds:ModifyDBParameterGroup","rds:DescribeDBParameterGroups","rds:DescribeDBParameters"
+        "rds:CreateDBParameterGroup","rds:DeleteDBParameterGroup","rds:ModifyDBParameterGroup","rds:DescribeDBParameterGroups","rds:DescribeDBParameters",
+        "rds:CreateDBSnapshot"
       ],
       "Resource": "*"
     },

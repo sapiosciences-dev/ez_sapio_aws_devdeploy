@@ -50,8 +50,8 @@ bls_server_cpu_request = "4"
 bls_server_memory_request = "28Gi"
 bls_server_cpu_limit = "7500m"
 bls_server_memory_limit = "28Gi"
-bls_server_storage_size = "1000Gi"
-bls_server_temp_storage_size = "100Gi"
+bls_server_storage_size = "30Gi"
+bls_server_temp_storage_size = "10Gi"
 
 # S3
 s3_enable_versioning = true

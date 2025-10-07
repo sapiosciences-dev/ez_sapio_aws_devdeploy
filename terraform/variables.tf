@@ -204,6 +204,11 @@ variable "bls_server_temp_storage_size" {
   description = "Temporary storage size for BLS Server, used for file uploads and processing. Also used by PDF generation."
   type        = string
   default     = "20Gi"
+
+  validation {
+    condition     = can(regex("^\\s*\\d+\\s*(Gi|G|GB)?\\s*$", var.bls_server_temp_storage_size))
+    error_message = "Use a number optionally followed by Gi/GB, e.g. 20Gi."
+  }
 }
 
 variable "s3_enable_versioning" {

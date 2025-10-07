@@ -21,6 +21,12 @@ data "aws_availability_zones" "available" {
 locals {
   az_count = length(data.aws_availability_zones.available.names)
   max_azs  = min(local.az_count, 3) # Use up to 3 AZs, but only if available (looking at you, us-west-1 👀)
+
+  # Pull the first number (integer or decimal) from the string, e.g. "20Gi" -> "20", "20.5GB" -> "20.5"
+  _size_matches     = regexall("\\d+(?:\\.\\d+)?", var.bls_server_temp_storage_size)
+  bls_temp_gib_raw  = length(local._size_matches) > 0 ? tonumber(local._size_matches[0]) : 0
+  bls_temp_gib_int  = ceil(local.bls_temp_gib_raw)
+  node_root_gib = local.bls_temp_gib_int + 20
 }
 
 module "vpc" {
@@ -114,6 +120,7 @@ module "eks" {
       # Use On-Demand capacity and a single instance type
       instance_types = [var.sapio_bls_instance_type]
       capacity_type = "ON_DEMAND"
+      disk_size = local.node_root_gib
 
       # Use latest EKS-optimized AL2023 AMI (x86_64)
       ami_type = "AL2023_x86_64_STANDARD"
