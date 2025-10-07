@@ -8,7 +8,7 @@ analytic_server_docker_image = "sapiosciences/sapio_analytics_server:25.9" # REP
 sapio_server_license_data = "" # REPLACE_ME Base64 of file. If not present, license must be loaded onto /data volume or baked under /opt/sapiosciences of the image.
 
 # Environment Specific Variables
-env_name            = "production"
+env_name            = "prod"
 app1_name           = "sapio_limsandeln" # [Account]_[App] in your license file for app 1.
 aws_region          = "us-east-1"
 eks_cluster_version = "1.34"
