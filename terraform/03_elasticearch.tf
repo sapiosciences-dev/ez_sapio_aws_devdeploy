@@ -41,6 +41,7 @@ resource "helm_release" "eck_operator" {
   ]
 
   timeout = 1200
+  depends_on = [module.eks]
 }
 
 # ECK creates TLS + the `elastic` user secret automatically for this CR

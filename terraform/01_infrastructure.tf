@@ -65,6 +65,12 @@ module "vpc" {
   }
 }
 
+# YQ: Sapio BLS need sticky subnet so the AZ don't change when node gets recreated, so the PVC can work without manual moves since EBS can only bind to 1 AZ.
+# Because need of a crappy manually managed node group which EKS driver won't auto-shift by AZ until we get BLS updated with replication support. :(
+locals {
+  sticky_private_subnet_id = module.vpc.private_subnets[0]
+}
+
 #
 # EKS Cluster using Auto Mode
 module "eks" {
@@ -106,7 +112,7 @@ module "eks" {
     sapio_bls = {
       node_group_name = "sapio-bls"
       name       = "sapio-bls"
-      subnet_ids = module.vpc.private_subnets
+      subnet_ids      = [local.sticky_private_subnet_id]
 
       node_repair_config = {
         enabled = true

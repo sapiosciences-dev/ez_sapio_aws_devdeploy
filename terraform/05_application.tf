@@ -176,10 +176,6 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
         container {
           name  = "${local.analytic_server_app_name}-analytic-server"
           image = var.analytic_server_docker_image
-          port  {
-            name = "analytic-tcp"
-            container_port = 8686
-          }
 
           # IMPORTANT for EKS Auto Mode: set realistic requests
           resources {
@@ -212,16 +208,32 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
             value = local.analytic_server_keystore_base64
           }
 
+          port {
+            name           = "analytic-tcp"
+            container_port = 8686
+            protocol       = "TCP"
+          }
+
           readiness_probe {
-            tcp_socket { port = "analytic-tcp" }
-            initial_delay_seconds = 30
+            exec { command = ["/bin/sh","-c","/usr/bin/nc -z -w 2 127.0.0.1 8686 >/dev/null 2>&1 && exit 0 || exit 1"] }
             period_seconds        = 5
+            timeout_seconds = 3
+            failure_threshold = 5
           }
 
           liveness_probe {
-            tcp_socket { port = "analytic-tcp" }
-            initial_delay_seconds = 30
-            period_seconds        = 10
+            exec { command = ["/bin/sh","-c","/usr/bin/nc -z -w 2 127.0.0.1 8686 >/dev/null 2>&1 && exit 0 || exit 1"] }
+            period_seconds        = 9
+            timeout_seconds = 3
+            failure_threshold = 5
+          }
+
+          startup_probe {
+            exec { command = ["/bin/sh","-c","/usr/bin/nc -z -w 2 127.0.0.1 8686 >/dev/null 2>&1 && exit 0 || exit 1"] }
+            initial_delay_seconds = 15   # give it a short head start
+            period_seconds        = 5
+            timeout_seconds       = 5
+            failure_threshold     = 60
           }
 
           # common init mounts to share filesystem.
@@ -275,38 +287,38 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
   depends_on = [kubernetes_service_account_v1.analytic_server_account, kubernetes_secret_v1.es_ca_for_as]
 }
 
-resource "kubernetes_network_policy_v1" "allow_node_probes" {
-  metadata {
-    name      = "allow-node-probes"
-    namespace = local.analytic_server_ns
-  }
-  spec {
-    pod_selector {
-      match_labels = {
-        app  = local.analytic_server_app_name
-        role = local.analytic_server_ns
-      }
-    }
-    policy_types = ["Ingress"]
-
-    ingress {
-      # Allow kubelet/node IPs to reach port 8686
-      dynamic "from" {
-        for_each = toset(concat(
-          module.vpc.private_subnets_cidr_blocks,
-          module.vpc.public_subnets_cidr_blocks
-        ))
-        content {
-          ip_block { cidr = from.value }
-        }
-      }
-      ports {
-        protocol = "TCP"
-        port     = 8686
-      }
-    }
-  }
-}
+# resource "kubernetes_network_policy_v1" "allow_node_probes" {
+#   metadata {
+#     name      = "allow-node-probes"
+#     namespace = local.analytic_server_ns
+#   }
+#   spec {
+#     pod_selector {
+#       match_labels = {
+#         app  = local.analytic_server_app_name
+#         role = local.analytic_server_ns
+#       }
+#     }
+#     policy_types = ["Ingress"]
+#
+#     ingress {
+#       # Allow kubelet/node IPs to reach port 8686
+#       dynamic "from" {
+#         for_each = toset(concat(
+#           module.vpc.private_subnets_cidr_blocks,
+#           module.vpc.public_subnets_cidr_blocks
+#         ))
+#         content {
+#           ip_block { cidr = from.value }
+#         }
+#       }
+#       ports {
+#         protocol = "TCP"
+#         port     = 8686
+#       }
+#     }
+#   }
+# }
 
 #############################################
 # Stable in-cluster Service for main app use
@@ -462,11 +474,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
     progress_deadline_seconds = 1200 # 20 minutes
     strategy {
       # Only run at max 1 server even in case of update. So there will be downtime when BLS updated but we have no choice for now.
-      type = "RollingUpdate"
-      rolling_update {
-        max_surge       = 0 # never creates two pods at the same time
-        max_unavailable = 1 # allow downtime window for this deployment.
-      }
+      type = "Recreate"
     }
     selector {
       match_labels = {
@@ -486,6 +494,19 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
         automount_service_account_token = true
         node_selector = {
           "sapio/pool" = "sapio-bls"
+        }
+        affinity {
+          node_affinity {
+            required_during_scheduling_ignored_during_execution {
+              node_selector_term {
+                match_expressions {
+                  key = "eks.amazonaws.com/compute-type"
+                  operator = "NotIn"
+                  values = ["auto"]
+                }
+              }
+            }
+          }
         }
 
         init_container {
