@@ -299,6 +299,29 @@ resource "aws_security_group_rule" "cluster_sg_ingress_vpc_all" {
 }
 
 ### metric server installation.
+### Ensure every node can send and receive metrics from metric server addon
+# 1) Allow kubelet 10250 within VPC on the cluster's primary SG
+resource "aws_security_group_rule" "kubelet_10250_on_cluster_sg" {
+  type              = "ingress"
+  description       = "Allow kubelet summary API (10250) within VPC (covers Auto Mode nodes via cluster SG)"
+  security_group_id = module.eks.cluster_primary_security_group_id
+  from_port         = 10250
+  to_port           = 10250
+  protocol          = "tcp"
+  cidr_blocks       = [module.vpc.vpc_cidr_block]
+}
+
+# 2) Also allow on your Managed Node Group SG (exists pre-nodes)
+resource "aws_security_group_rule" "kubelet_10250_on_mng_sg" {
+  type              = "ingress"
+  description       = "Allow kubelet 10250 within VPC for self-managed/managed node group"
+  security_group_id = module.eks.node_security_group_id
+  from_port         = 10250
+  to_port           = 10250
+  protocol          = "tcp"
+  cidr_blocks       = [module.vpc.vpc_cidr_block]
+}
+
 resource "helm_release" "metrics_server" {
   name       = "metrics-server"
   repository = "https://kubernetes-sigs.github.io/metrics-server/"
@@ -327,49 +350,5 @@ resource "helm_release" "metrics_server" {
     priorityClassName = "system-cluster-critical"
   })]
 
-  depends_on = [module.eks]
-}
-
-### Ensure every node can send and receive metrics from metric server addon
-# 1) Discover all running EC2 instances that belong to this EKS cluster
-data "aws_instances" "eks_nodes" {
-  instance_state_names = ["running"]
-  filter {
-    # EKS tags nodes with the cluster tag
-    name   = "tag:kubernetes.io/cluster/${module.eks.cluster_name}"
-    values = ["owned", "shared"]
-  }
-
-  depends_on = [module.eks]
-}
-
-# 2) Load details for each instance to extract SGs
-data "aws_instance" "eks_node" {
-  for_each    = toset(data.aws_instances.eks_nodes.ids)
-  instance_id = each.value
-
-  depends_on = [module.eks]
-}
-
-# 3) Collect unique worker SG IDs
-locals {
-  worker_sg_ids = toset(flatten([
-    for inst in data.aws_instance.eks_node :
-    inst.vpc_security_group_ids
-  ]))
-}
-
-# 4) Open 10250 from within the VPC on every worker SG (covers cross-SG traffic)
-resource "aws_security_group_rule" "kubelet_10250_vpc_on_all_workers" {
-  for_each          = local.worker_sg_ids
-  type              = "ingress"
-  description       = "Allow kubelet summary API (10250) from within VPC"
-  security_group_id = each.value
-
-  from_port   = 10250
-  to_port     = 10250
-  protocol    = "tcp"
-  cidr_blocks = [module.vpc.vpc_cidr_block]
-
-  depends_on = [module.eks]
+  depends_on = [module.eks, aws_security_group_rule.kubelet_10250_on_cluster_sg, aws_security_group_rule.kubelet_10250_on_mng_sg]
 }
