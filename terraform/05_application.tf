@@ -374,7 +374,7 @@ resource "kubernetes_horizontal_pod_autoscaler_v2" "analytic_server_hpa" {
       resource {
         name = "cpu"
         target {
-          type                = "Utilization"
+          type                = "Utilization" # of requests % not limit %. So it can go above 100% if > request % and request % < limit %.
           average_utilization = var.analytic_server_target_cpu_utilization_percentage
         }
       }
@@ -398,7 +398,7 @@ resource "kubernetes_horizontal_pod_autoscaler_v2" "analytic_server_hpa" {
         policy {
           type          = "Percent"
           value         = 100
-          period_seconds = 60
+          period_seconds = 30
         }
       }
       scale_down {
@@ -407,7 +407,7 @@ resource "kubernetes_horizontal_pod_autoscaler_v2" "analytic_server_hpa" {
         policy {
           type          = "Percent"
           value         = 50
-          period_seconds = 60
+          period_seconds = 600
         }
       }
     }

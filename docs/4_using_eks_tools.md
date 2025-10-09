@@ -124,3 +124,90 @@ If you are trying to kill a EKS cluster and EKS cluster pod termination is faili
 
 Generally this command should only be used in devops when developing for custom deployment changes to pods.
 The configuration will not be easily recovered.
+
+# Tuning Rescale Policy for Analytic Server
+Use the following command to see the logs as well as current metrics and the decisions made by horizontal autoscaler for Sapio Analytic Server deployment:
+
+```shell
+kubectl describe hpa ekssapio-stest-analyticserver-app-analytic-server-hpa -n sapio-analytic-server
+```
+
+First, confirm in log and in detailed status, that HPA is currently monitoring the analytic server successfully.
+You would want to verify that there are no recent warnings about failures, and that "ScalingActive" has status true with reason as "ValidMetricFound".
+
+Then you should read up the behavior and replica limits in the output, to make sure they sound reasonable and within your budget constraint for the deployment.
+
+Load a large analytic batch workload to test. We in Sapio usually do this with a batch import of millions of compounds in an SDF file >250MB.
+
+As the workload progresses, repeat this command as many times as needed when analytic server is in use, and see whether the scale up and scale down is acceptable as a user as the workload progresses in Sapio.
+
+The following in an example output:
+
+```text
+ubuntu@ip-172-31-23-177:~/dev$ kubectl describe hpa ekssapio-stest-analyticserver-app-analytic-server-hpa -n sapio-analytic-server
+Name:                                                     ekssapio-stest-analyticserver-app-analytic-server-hpa
+Namespace:                                                sapio-analytic-server
+Labels:                                                   <none>
+Annotations:                                              <none>
+CreationTimestamp:                                        Wed, 08 Oct 2025 22:40:33 +0000
+Reference:                                                Deployment/ekssapio-stest-analyticserver-app-analytic-server-deployment
+Metrics:                                                  ( current / target )
+  resource cpu on pods  (as a percentage of request):     34% (699m) / 60%
+  resource memory on pods  (as a percentage of request):  1% (389044Ki) / 70%
+Min replicas:                                             1
+Max replicas:                                             10
+Behavior:
+  Scale Up:
+    Stabilization Window: 60 seconds
+    Select Policy: Max
+    Policies:
+      - Type: Percent  Value: 100  Period: 60 seconds
+  Scale Down:
+    Stabilization Window: 300 seconds
+    Select Policy: Min
+    Policies:
+      - Type: Percent  Value: 50  Period: 60 seconds
+Deployment pods:       2 current / 2 desired
+Conditions:
+  Type            Status  Reason               Message
+  ----            ------  ------               -------
+  AbleToScale     True    ScaleDownStabilized  recent recommendations were higher than current one, applying the highest recent recommendation
+  ScalingActive   True    ValidMetricFound     the HPA was able to successfully calculate a replica count from cpu resource utilization (percentage of request)
+  ScalingLimited  False   DesiredWithinRange   the desired count is within the acceptable range
+Events:
+  Type     Reason                        Age                From                       Message
+  ----     ------                        ----               ----                       -------
+  Warning  FailedGetResourceMetric       51m                horizontal-pod-autoscaler  failed to get cpu utilization: unable to get metrics for resource cpu: unable to fetch metrics from resource metrics API: the server is currently unable to handle the request (get pods.metrics.k8s.io)
+  Warning  FailedGetResourceMetric       51m                horizontal-pod-autoscaler  failed to get memory utilization: unable to get metrics for resource memory: unable to fetch metrics from resource metrics API: the server is currently unable to handle the request (get pods.metrics.k8s.io)
+  Warning  FailedComputeMetricsReplicas  51m                horizontal-pod-autoscaler  invalid metrics (2 invalid out of 2), first error is: failed to get cpu resource metric value: failed to get cpu utilization: unable to get metrics for resource cpu: unable to fetch metrics from resource metrics API: the server is currently unable to handle the request (get pods.metrics.k8s.io)
+  Warning  FailedGetResourceMetric       51m (x2 over 16h)  horizontal-pod-autoscaler  failed to get cpu utilization: unable to get metrics for resource cpu: no metrics returned from resource metrics API
+  Warning  FailedGetResourceMetric       51m (x2 over 16h)  horizontal-pod-autoscaler  failed to get memory utilization: unable to get metrics for resource memory: no metrics returned from resource metrics API
+  Warning  FailedComputeMetricsReplicas  51m (x2 over 16h)  horizontal-pod-autoscaler  invalid metrics (2 invalid out of 2), first error is: failed to get cpu resource metric value: failed to get cpu utilization: unable to get metrics for resource cpu: no metrics returned from resource metrics API
+  Normal   SuccessfulRescale             32m                horizontal-pod-autoscaler  New size: 2; reason: cpu resource utilization (percentage of request) above target
+  Normal   SuccessfulRescale             31m                horizontal-pod-autoscaler  New size: 4; reason: cpu resource utilization (percentage of request) above target
+  Normal   SuccessfulRescale             21m                horizontal-pod-autoscaler  New size: 7; reason: cpu resource utilization (percentage of request) above target
+  Normal   SuccessfulRescale             20m                horizontal-pod-autoscaler  New size: 8; reason: cpu resource utilization (percentage of request) above target
+  Normal   SuccessfulRescale             17m                horizontal-pod-autoscaler  New size: 10; reason: cpu resource utilization (percentage of request) above target
+  Normal   SuccessfulRescale             4m9s               horizontal-pod-autoscaler  New size: 5; reason: All metrics below target
+  Normal   SuccessfulRescale             3m9s               horizontal-pod-autoscaler  New size: 3; reason: All metrics below target
+  Normal   SuccessfulRescale             99s                horizontal-pod-autoscaler  New size: 2; reason: All metrics below target
+```
+
+Note that when HPA computes number of desired replicas from average targets, the formula is:
+```text
+desired = ceil(currentReplicas * currentUtilization / targetUtilization)
+```
+So if we are currently at 2 replicas, and the current average utilization of pods is 100%, then the next desired replica number is:
+```text
+desired = ceil(2 * 100 / 60) = ceil(200 / 60) = ceil(3.3333...) = 4
+```
+This means if this is the stable average target in the current stabilisation window, the next scale up will change number of pods to 4, an increase of 2 pods in one scale-up.
+But it cannot exceed the maximum scale up window within the defined period, which by default means it cannot exceed 100% of current size.
+
+Let's try another example. If the current average utilization of pods is 80% and the target is 60%, and we currently have 2 replicas then
+```text
+desired = ceiling(2 * 80 / 60) = ceiling(2.667) = 3
+```
+This means after stabilization period expires, should the metric continue to hold, the next scale up will change the number of pods to 3, an increase of 1 pod in one scale-up.
+
+With multiple targets (CPU and memory utilization), the desired # replica recommendation will use the maximum number of replicas across any metrics used the formula above.

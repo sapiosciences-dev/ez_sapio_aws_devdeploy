@@ -32,15 +32,15 @@ mysql_skip_final_snapshot = true
 
 ## Analytic Server
 analytic_enabled = true
-analytic_server_cpu_request = "1"
-analytic_server_memory_request = "16Gi"
-analytic_server_cpu_limit = "2"
-analytic_server_memory_limit = "32Gi"
+analytic_server_cpu_request = "4"
+analytic_server_memory_request = "12Gi"
+analytic_server_cpu_limit = "4"
+analytic_server_memory_limit = "14Gi"
 analytic_server_temp_storage_size = "100Gi"
 analytic_server_min_replicas = 1
 analytic_server_max_replicas = 1
 analytic_server_target_cpu_utilization_percentage = 60
-analytic_server_target_memory_utilization_percentage = 70
+analytic_server_target_memory_utilization_percentage = 75
 
 ## Sapio BLS
 # This is Java app so memory limit and request should be identical.

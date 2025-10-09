@@ -32,16 +32,17 @@ mysql_retention_period_days = 14
 mysql_skip_final_snapshot = false
 
 ## Analytic Server
+# Note: limit can be above request, but if so metric server can report > 100% util so need to adjust hard coded policy.
 analytic_enabled = true
-analytic_server_cpu_request = "2"
+analytic_server_cpu_request = "8"
 analytic_server_memory_request = "24Gi"
 analytic_server_cpu_limit = "8"
-analytic_server_memory_limit = "48Gi"
+analytic_server_memory_limit = "26Gi"
 analytic_server_temp_storage_size = "100Gi"
 analytic_server_min_replicas = 1
 analytic_server_max_replicas = 10
 analytic_server_target_cpu_utilization_percentage = 60
-analytic_server_target_memory_utilization_percentage = 70
+analytic_server_target_memory_utilization_percentage = 75
 
 ## Sapio BLS
 # This is Java app so memory limit and request should be identical.
