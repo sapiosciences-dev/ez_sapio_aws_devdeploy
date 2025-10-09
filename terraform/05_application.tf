@@ -661,7 +661,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
           }
           env {
             name  = "VELOXSERVER_JVM_ARGS"
-            value = "-XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/data/oom.hprof"
+            value = "-XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/data/oom.hprof -XX:MaxRAMPercentage=75"
           }
           env {
             name  = "SERVER_LICENSE"
