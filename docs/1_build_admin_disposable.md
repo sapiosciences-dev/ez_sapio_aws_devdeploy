@@ -32,7 +32,9 @@ cd admin_disposable
 cat sapio_eks_policy.json
 ```
 Copy the policy to clipboard. Alternatively, download the policy using SFTP client.
-10. In IAM console, create a policy "sapio-eks-admin-disposable", paste the policy you copied earlier, and create the policy. 
+
+
+10. In IAM console, create a policy "sapio-eks-admin-disposable", paste the policy you copied earlier, and create the policy.
 11. Go to EC2 console, select the instance you created earlier, click "Actions" -> "Security" -> "Modify IAM Role", click "Create Role", select "AWS Service" -> "EC2", click "Next: Permissions", search for the policy you created earlier, select it, click "Next: Tags", click "Next: Review", give the role a name such as "sapio-eks-admin-disposable-role", click "Create Role". Go back to the instance, select the role you just created, and click "Update IAM Role".
 12. Run "install.sh" under admin_disposable folder to install AWS CLI, kubectl, eksctl, and helm.
 > 💡 TIP
