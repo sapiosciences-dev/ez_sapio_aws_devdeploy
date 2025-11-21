@@ -42,6 +42,12 @@ analytic_server_max_replicas = 1
 analytic_server_target_cpu_utilization_percentage = 60
 analytic_server_target_memory_utilization_percentage = 75
 
+## Onlyoffice
+# Tip: Modify the image if you need a different edition
+onlyoffice_image = "onlyoffice/documentserver_ee:latest"
+onlyoffice_cpu_request = "2"
+onlyoffice_memory_request = "6Gi"
+
 ## Sapio BLS
 # This is Java app so memory limit and request should be identical.
 sapio_bls_instance_type = "m5.xlarge" #m5.xlarge has 16Gi memory, 4 vCPU. Adjust according to your load.

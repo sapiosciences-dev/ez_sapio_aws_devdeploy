@@ -1,6 +1,0 @@
-apiVersion: v2
-name: cert-bootstrap
-description: Bootstrap ClusterIssuers and ES HTTP Certificate
-type: application
-version: 0.1.0          # chart version (semver, string)
-appVersion: "1.0.0"     # app version (string)

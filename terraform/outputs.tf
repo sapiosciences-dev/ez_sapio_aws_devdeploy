@@ -44,3 +44,11 @@ locals {
 output "sapio_bls_external_url" {
   value = length(local.bls_lb_host) > 0 ? local.bls_lb_host : "Sapio BLS external endpoint is provisioning..."
 }
+
+output "sapio_bls_subdomain" {
+  value = "https://${local.bls_subdomain}"
+}
+
+output "sapio_onlyoffice_external_url" {
+  value = "https://${local.onlyoffice_subdomain}"
+}

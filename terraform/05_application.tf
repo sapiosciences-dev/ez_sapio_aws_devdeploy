@@ -15,6 +15,7 @@ resource "random_password" "analytic_server_api_key"{
 
 # Define the app name
 locals {
+  bls_subdomain = "bls.${var.env_name}.${var.customer_owned_domain}"
   #YQ: This is a runtime level secret so it can be on ENV.
   analytic_server_api_key = random_password.analytic_server_api_key.result
 
@@ -39,6 +40,8 @@ TextSearchUrl=https://${local.es_release_name}-es-http.${local.es_namespace}.svc
 AttachmentStorageType=amazons3
 AttachmentStorageLocation=${local.s3_bucket_name}
 AttachmentAWSRegion=${var.aws_region}
+IntegratedOfficeUrl=https://${local.onlyoffice_subdomain}
+IntegratedOfficeJwtSecret=${INTEGRATED_OFFICE_JWT_SECRET}
 EOF
   build_trust_script = <<-EOS
 set -eu
@@ -83,6 +86,40 @@ if [ -d "$K8S_JAVA_SECURITY_DIR" ]; then
   fi
 fi
 EOS
+}
+
+# Request ACM certificate for the BLS subdomain
+resource "aws_acm_certificate" "bls" {
+  domain_name       = local.bls_subdomain
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Create DNS validation records
+resource "aws_route53_record" "bls_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.bls.domain_validation_options :
+    dvo.domain_name => {
+      name   = dvo.resource_record_name
+      type   = dvo.resource_record_type
+      record = dvo.resource_record_value
+    }
+  }
+
+  zone_id = data.aws_route53_zone.root.zone_id
+  name    = each.value.name
+  type    = each.value.type
+  ttl     = 60
+  records = [each.value.record]
+}
+
+# Validate certificate
+resource "aws_acm_certificate_validation" "bls" {
+  certificate_arn         = aws_acm_certificate.bls.arn
+  validation_record_fqdns = [for r in aws_route53_record.bls_validation : r.fqdn]
 }
 
 ###############################
@@ -286,39 +323,6 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
 
   depends_on = [kubernetes_service_account_v1.analytic_server_account, kubernetes_secret_v1.es_ca_for_as]
 }
-
-# resource "kubernetes_network_policy_v1" "allow_node_probes" {
-#   metadata {
-#     name      = "allow-node-probes"
-#     namespace = local.analytic_server_ns
-#   }
-#   spec {
-#     pod_selector {
-#       match_labels = {
-#         app  = local.analytic_server_app_name
-#         role = local.analytic_server_ns
-#       }
-#     }
-#     policy_types = ["Ingress"]
-#
-#     ingress {
-#       # Allow kubelet/node IPs to reach port 8686
-#       dynamic "from" {
-#         for_each = toset(concat(
-#           module.vpc.private_subnets_cidr_blocks,
-#           module.vpc.public_subnets_cidr_blocks
-#         ))
-#         content {
-#           ip_block { cidr = from.value }
-#         }
-#       }
-#       ports {
-#         protocol = "TCP"
-#         port     = 8686
-#       }
-#     }
-#   }
-# }
 
 #############################################
 # Stable in-cluster Service for main app use
@@ -694,6 +698,15 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
             name  = "USE_SYSTEM_CA_CERTS"
             value = "1"
           }
+          env {
+            name = "INTEGRATED_OFFICE_JWT_SECRET"
+            value_from {
+              secret_key_ref {
+                name = "onlyoffice-jwt-secret"
+                key  = "jwt-secret"
+              }
+            }
+          }
 
           #volume
           # Mount the PVC as a volume in the container
@@ -806,6 +819,11 @@ resource "kubernetes_service_v1" "sapio_bls_nlb" {
       # Security
       "service.beta.kubernetes.io/aws-load-balancer-security-groups" =  aws_security_group.sapio_nlb_frontend.id
       "service.beta.kubernetes.io/aws-load-balancer-manage-backend-security-group-rules" = "true"
+
+      # SSL Certificate Data
+      "service.beta.kubernetes.io/aws-load-balancer-ssl-cert" = aws_acm_certificate_validation.bls.certificate_arn
+      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol" = "tcp"
+      "service.beta.kubernetes.io/aws-load-balancer-ssl-ports" = "443"
     }
   }
   spec {
@@ -815,7 +833,7 @@ resource "kubernetes_service_v1" "sapio_bls_nlb" {
     selector = { app = local.sapio_bls_app_name }   # same pods
     port {
       name        = "https"
-      port        = 8443          # NLB listener port
+      port        = 443          # NLB listener port
       target_port = 8443
       protocol    = "TCP"
     }
@@ -833,4 +851,22 @@ resource "kubernetes_service_v1" "sapio_bls_nlb" {
     }
   }
   depends_on = [kubernetes_deployment_v1.sapio_app_deployment]
+}
+
+# Expose to the world via Route53 by defined subdomain.
+resource "aws_route53_record" "bls_alias" {
+  depends_on = [
+    kubernetes_service_v1.sapio_bls_nlb,
+    aws_acm_certificate_validation.bls
+  ]
+
+  zone_id = data.aws_route53_zone.root.zone_id
+  name    = local.bls_subdomain
+  type    = "A"
+
+  alias {
+    name                   = kubernetes_service_v1.sapio_bls_nlb.status[0].load_balancer[0].ingress[0].hostname
+    zone_id                = data.aws_elb_hosted_zone_id.alb.id
+    evaluate_target_health = false
+  }
 }

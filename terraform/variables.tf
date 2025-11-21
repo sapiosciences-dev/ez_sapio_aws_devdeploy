@@ -1,3 +1,10 @@
+# Domain
+variable customer_owned_domain {
+  description = "e.g. 'mydomain.com'. The customer-owned domain for the SAPIO deployment. Must be recorded as managed by Route53 at the account. You can purchase a domain through Route53 if you prefer or import one from there."
+  type        = string
+  nullable = false
+}
+
 # Firewall
 variable admin_cidr_blocks {
   description = "The CIDR blocks for admin access (e.g., SSH, RDP). Example: "
@@ -169,6 +176,24 @@ variable "analytic_server_target_memory_utilization_percentage" {
   type        = number
   default     = 70
 }
+
+# Onlyoffice
+variable "onlyoffice_image" {
+  description = "The docker image for OnlyOffice Document Server, e.g. onlyoffice/documentserver_ee:latest"
+  type        = string
+  default     = "onlyoffice/documentserver_ee:latest"
+}
+variable "onlyoffice_cpu_request" {
+  description = "CPU request for OnlyOffice Document Server"
+  type        = string
+  default     = "2"
+}
+variable "onlyoffice_memory_request" {
+  description = "Memory request for OnlyOffice Document Server"
+  type        = string
+  default     = "6Gi"
+}
+
 # BLS Server
 variable "sapio_bls_instance_type"{
   description = "EC2 instance type for the self-managed node group running the BLS server"
