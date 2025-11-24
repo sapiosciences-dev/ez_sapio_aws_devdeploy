@@ -41,7 +41,7 @@ AttachmentStorageType=amazons3
 AttachmentStorageLocation=${local.s3_bucket_name}
 AttachmentAWSRegion=${var.aws_region}
 IntegratedOfficeUrl=https://${local.onlyoffice_subdomain}
-IntegratedOfficeJwtSecret=${INTEGRATED_OFFICE_JWT_SECRET}
+IntegratedOfficeJwtSecret=$(cat /run/onlyoffice_jwt/jwt-secret)
 EOF
   build_trust_script = <<-EOS
 set -eu
@@ -698,17 +698,13 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
             name  = "USE_SYSTEM_CA_CERTS"
             value = "1"
           }
-          env {
-            name = "INTEGRATED_OFFICE_JWT_SECRET"
-            value_from {
-              secret_key_ref {
-                name = "onlyoffice-jwt-secret"
-                key  = "jwt-secret"
-              }
-            }
-          }
 
           #volume
+          volume_mount {
+            name       = "onlyoffice-jwt"
+            mount_path = "/run/onlyoffice_jwt"
+            read_only  = true
+          }
           # Mount the PVC as a volume in the container
           volume_mount {
             name       = "ebs-k8s-attached-storage"
@@ -735,6 +731,12 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
         }
         #container
         # Volumes
+        volume {
+          name = "onlyoffice-jwt"
+          secret {
+            secret_name = "onlyoffice-jwt-secret"
+          }
+        }
         # internal-ca: your existing Secret with key "ca.crt"
         volume {
           name = "internal-ca"
@@ -777,6 +779,7 @@ resource "kubernetes_deployment_v1" "sapio_app_deployment" {
   # Give time for the cluster to complete (controllers, RBAC and IAM propagation)
   # See https://github.com/setheliot/eks_auto_mode/blob/main/docs/separate_configs.md
   depends_on = [module.eks, kubernetes_service_v1.mysql_writer_svc_sapio, kubernetes_service_v1.mysql_replica_svc_sapio,
+    aws_route53_record.onlyoffice_dns,
     kubernetes_job_v1.es_bootstrap_app_user, kubernetes_service_account_v1.sapio_account,
     aws_eks_addon.vpc_cni, kubernetes_secret_v1.es_ca_for_sapio, aws_s3_bucket.cluster_bucket]
 }
