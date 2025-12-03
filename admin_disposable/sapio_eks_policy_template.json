@@ -217,7 +217,8 @@
         "acm:AddTagsToCertificate",
         "acm:RemoveTagsFromCertificate",
         "acm:UpdateCertificateOptions",
-        "acm:ExportCertificate"
+        "acm:ExportCertificate",
+        "acm:DeleteCertificate"
       ],
       "Resource": "*"
     }
