@@ -796,6 +796,7 @@ resource "kubernetes_network_policy_v1" "sapio_allow_egress_all" {
     policy_types = ["Egress"]
     egress { }
   }
+  depends_on = [module.eks]
 }
 
 # There is no LB support. But replica = 1 means there is no replica. This is the easiest way to export the app.
@@ -854,6 +855,8 @@ resource "kubernetes_service_v1" "sapio_bls_nlb" {
       protocol    = "TCP"
     }
   }
+
+  depends_on = [kubernetes_deployment_v1.sapio_app_deployment]
 }
 
 data "aws_lb_hosted_zone_id" "bls_nlb" {

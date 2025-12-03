@@ -259,7 +259,8 @@ for i in {1..1000}; do
         echo "💻    $EXTERNAL_URL_OUTPUT/velox_portal    "
         echo "⭐️ Here is the OnlyOffice URL your office need to whitelist as well:"
         echo "💻    $EXTERNAL_OFFICE_URL_OUTPUT"
-        echo "⏳ Please be patient. It may take up to a minute to become available"
+        echo "⏳ Please be patient. It may take up to a minute to become available."
+        echo "⏳ Your workstation DNS server and browser cache may cause further delays in propagation with custom TTL."
         exit 0
     fi
     echo -n "."

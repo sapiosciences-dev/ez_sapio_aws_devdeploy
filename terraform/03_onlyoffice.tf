@@ -84,7 +84,7 @@ resource "kubernetes_secret_v1" "onlyoffice_jwt_secret" {
   }
 
   data = {
-    jwt-secret = base64encode(random_password.onlyoffice_jwt_secret.result)
+    jwt-secret = random_password.onlyoffice_jwt_secret.result
   }
 
   depends_on = [module.eks, kubernetes_namespace.onlyoffice]
@@ -97,7 +97,7 @@ resource "kubernetes_secret_v1" "sapio_jwt_secret" {
   }
 
   data = {
-    jwt-secret = base64encode(random_password.onlyoffice_jwt_secret.result)
+    jwt-secret = random_password.onlyoffice_jwt_secret.result
   }
 
   depends_on = [module.eks, kubernetes_namespace.onlyoffice]
