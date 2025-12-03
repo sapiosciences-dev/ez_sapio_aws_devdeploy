@@ -87,7 +87,7 @@ resource "kubernetes_secret_v1" "onlyoffice_jwt_secret" {
     jwt-secret = base64encode(random_password.onlyoffice_jwt_secret.result)
   }
 
-  depends_on = [module.eks]
+  depends_on = [module.eks, kubernetes_namespace.onlyoffice]
 }
 
 resource "kubernetes_secret_v1" "sapio_jwt_secret" {
@@ -100,12 +100,12 @@ resource "kubernetes_secret_v1" "sapio_jwt_secret" {
     jwt-secret = base64encode(random_password.onlyoffice_jwt_secret.result)
   }
 
-  depends_on = [module.eks]
+  depends_on = [module.eks, kubernetes_namespace.onlyoffice]
 }
 
 ## Step 3 Pod Deployment
 resource "kubernetes_deployment" "onlyoffice_documentserver" {
-  depends_on = [module.eks]
+  depends_on = [module.eks, kubernetes_namespace.onlyoffice]
 
   metadata {
     name      = "onlyoffice-documentserver"
@@ -285,7 +285,7 @@ resource "kubernetes_service_v1" "onlyoffice_service" {
   }
 
   # Make sure the cert is Issued before NLB tries to use it
-  depends_on = [aws_acm_certificate_validation.onlyoffice]
+  depends_on = [aws_acm_certificate_validation.onlyoffice, kubernetes_namespace.onlyoffice]
 }
 
 ## STEP 5 Route53
@@ -308,6 +308,58 @@ resource "aws_route53_record" "onlyoffice_dns" {
 
   depends_on = [
     kubernetes_service_v1.onlyoffice_service,
-    aws_acm_certificate_validation.onlyoffice
+    aws_acm_certificate_validation.onlyoffice, kubernetes_namespace.onlyoffice
+  ]
+}
+
+resource "null_resource" "onlyoffice_pod_cleanup" {
+  triggers = {
+    ns = local.onlyoffice_ns
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<-EOC
+      set -eu
+      NS="${self.triggers.ns}"
+
+      echo "[onlyoffice] Destroy hook: cleaning pods in namespace ${NS}..."
+
+      # If namespace is already gone, nothing to do
+      if ! kubectl get ns "$NS" >/dev/null 2>&1; then
+        echo "[onlyoffice] Namespace $NS not found; skipping pod cleanup."
+        exit 0
+      fi
+
+      # Get *all* pod names in the namespace (running, pending, terminating, whatever)
+      PODS="$(kubectl get pod -n "$NS" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' || true)"
+
+      if [ -z "$PODS" ]; then
+        echo "[onlyoffice] No pods found in namespace $NS; nothing to clean."
+        exit 0
+      fi
+
+      for P in $PODS; do
+        echo "[onlyoffice] Cleaning pod $P..."
+
+        # 1) Strip any finalizers so K8s won't keep it around
+        kubectl patch pod "$P" -n "$NS" \
+          -p '{"metadata":{"finalizers":[]}}' \
+          --type=merge || true
+
+        # 2) Force-delete the pod (handles running + terminating cases)
+        kubectl delete pod "$P" -n "$NS" \
+          --force --grace-period=0 --ignore-not-found=true --wait=false || true
+      done
+
+      echo "[onlyoffice] Pod cleanup complete in namespace $NS."
+    EOC
+  }
+
+  # Run this while the OnlyOffice resources still exist
+  # (order doesn't have to be perfect, just before/around k8s namespace deletion)
+  depends_on = [
+    kubernetes_deployment.onlyoffice_documentserver,
+    kubernetes_service_v1.onlyoffice_service,
   ]
 }
