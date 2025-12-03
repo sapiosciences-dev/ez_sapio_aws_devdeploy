@@ -313,20 +313,18 @@ resource "aws_route53_record" "onlyoffice_dns" {
 }
 
 resource "null_resource" "onlyoffice_pod_cleanup" {
-  # triggers are optional now; you can keep or drop them.
-  # They do NOT get referenced from the destroy-time provisioner.
+  # optional, but fine to keep; not referenced in the provisioner
   triggers = {
     ns = "onlyoffice"
   }
 
   provisioner "local-exec" {
     when    = destroy
-    # IMPORTANT: no ${...} Terraform interpolation in here at all.
     command = <<-EOC
       set -eu
       NS="onlyoffice"
 
-      echo "[onlyoffice] Destroy hook: cleaning pods in namespace ${NS}..."
+      echo "[onlyoffice] Destroy hook: cleaning pods in namespace $NS..."
 
       # If namespace is already gone, nothing to do
       if ! kubectl get ns "$NS" >/dev/null 2>&1; then
@@ -359,7 +357,6 @@ resource "null_resource" "onlyoffice_pod_cleanup" {
     EOC
   }
 
-  # This is fine: depends_on is part of the resource graph, not the provisioner body
   depends_on = [
     kubernetes_deployment.onlyoffice_documentserver,
     kubernetes_service_v1.onlyoffice_service,
