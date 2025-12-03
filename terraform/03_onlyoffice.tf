@@ -1,7 +1,35 @@
+## Step 1 Locals
 locals {
   onlyoffice_subdomain = "docs.${var.env_name}.${var.customer_owned_domain}"
   onlyoffice_ns        = "onlyoffice"
+
+  # Init script to generate a self-signed cert inside the pod
+  onlyoffice_tls_init_script = <<-EOS
+    set -eu
+
+    CERT_DIR="/var/www/onlyoffice/Data/certs"
+    mkdir -p "$CERT_DIR"
+
+    # Generate key+cert if missing
+    if [ ! -s "$CERT_DIR/tls.key" ] || [ ! -s "$CERT_DIR/tls.crt" ]; then
+      echo "Generating self-signed certificate for ${local.onlyoffice_subdomain}..."
+      openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+        -keyout "$CERT_DIR/tls.key" \
+        -out "$CERT_DIR/tls.crt" \
+        -subj "/CN=${local.onlyoffice_subdomain}"
+    fi
+
+    # Generate dhparam if missing (expensive but once per pod)
+    if [ ! -s "$CERT_DIR/dhparam.pem" ]; then
+      echo "Generating dhparam.pem..."
+      openssl dhparam -out "$CERT_DIR/dhparam.pem" 2048
+    fi
+
+    chmod 600 "$CERT_DIR/tls.key"
+  EOS
 }
+
+## Step 2 Resources
 
 # Prove the domain ownership to AWS Certificate Manager (ACM) for the OnlyOffice subdomain from Route53.
 resource "aws_acm_certificate" "onlyoffice" {
@@ -41,6 +69,14 @@ resource "random_password" "onlyoffice_jwt_secret" {
   length  = 32
   special = false
 }
+
+resource "kubernetes_namespace" "onlyoffice" {
+  metadata {
+    name = local.onlyoffice_ns
+  }
+  depends_on = [module.eks]
+}
+
 resource "kubernetes_secret_v1" "onlyoffice_jwt_secret" {
   metadata {
     name      = "onlyoffice-jwt-secret"
@@ -53,6 +89,7 @@ resource "kubernetes_secret_v1" "onlyoffice_jwt_secret" {
 
   depends_on = [module.eks]
 }
+
 resource "kubernetes_secret_v1" "sapio_jwt_secret" {
   metadata {
     name      = "onlyoffice-jwt-secret"
@@ -66,7 +103,7 @@ resource "kubernetes_secret_v1" "sapio_jwt_secret" {
   depends_on = [module.eks]
 }
 
-# Create onlyoffice app for deployment
+## Step 3 Pod Deployment
 resource "kubernetes_deployment" "onlyoffice_documentserver" {
   depends_on = [module.eks]
 
@@ -95,23 +132,40 @@ resource "kubernetes_deployment" "onlyoffice_documentserver" {
       }
 
       spec {
+        # --- Init container: generate self-signed cert into shared volume ---
+        init_container {
+          name  = "generate-onlyoffice-tls"
+          image = var.onlyoffice_image
+
+          command = ["/bin/sh", "-c"]
+          args    = [local.onlyoffice_tls_init_script]
+
+          volume_mount {
+            name       = "onlyoffice-tls"
+            mount_path = "/var/www/onlyoffice/Data/certs"
+          }
+        }
+
+        # --- Main OnlyOffice container ---
         container {
           name  = "documentserver"
           image = var.onlyoffice_image
 
-          # HTTP only - ALB will terminate HTTPS
+          # HTTP (for health) and HTTPS (for backend TLS)
           port {
             container_port = 80
           }
+          port {
+            container_port = 443
+          }
 
           env {
-            # Allow self signed certificates for callbacks/internal storage if needed
             name  = "USE_UNAUTHORIZED_STORAGE"
             value = "true"
           }
 
           env {
-            name = "JWT_ENABLED"
+            name  = "JWT_ENABLED"
             value = "true"
           }
 
@@ -125,7 +179,21 @@ resource "kubernetes_deployment" "onlyoffice_documentserver" {
             }
           }
 
-          # probes
+          # Make HTTPS explicit (matches the cert paths from init container)
+          env {
+            name = "SSL_CERTIFICATE_PATH"
+            value = "/var/www/onlyoffice/Data/certs/tls.crt"
+          }
+          env {
+            name = "SSL_KEY_PATH"
+            value = "/var/www/onlyoffice/Data/certs/tls.key"
+          }
+          env {
+            name = "SSL_DHPARAM_PATH"
+            value = "/var/www/onlyoffice/Data/certs/dhparam.pem"
+          }
+
+          # probes (still fine to hit HTTP 80)
           liveness_probe {
             http_get {
               path = "/"
@@ -143,105 +211,103 @@ resource "kubernetes_deployment" "onlyoffice_documentserver" {
             initial_delay_seconds = 5
             period_seconds        = 10
           }
+
+          volume_mount {
+            name       = "onlyoffice-tls"
+            mount_path = "/var/www/onlyoffice/Data/certs"
+            read_only  = true
+          }
+        }
+
+        # Shared EmptyDir volume between init + main container
+        volume {
+          name = "onlyoffice-tls"
+          empty_dir {}
         }
       }
     }
   }
 }
 
-resource "kubernetes_service" "onlyoffice_service" {
-  depends_on = [
-    module.eks,
-    kubernetes_deployment.onlyoffice_documentserver
-  ]
+## Step 4 NLB
+resource "kubernetes_service_v1" "onlyoffice_service" {
+  wait_for_load_balancer = true
 
   metadata {
     name      = "onlyoffice-documentserver"
     namespace = local.onlyoffice_ns
-    labels = {
-      app = "onlyoffice-documentserver"
+    labels    = { app = "onlyoffice-documentserver" }
+
+    annotations = {
+      # Internet-facing NLB
+      "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing"
+
+      # Health check (you can use TCP 443 or HTTP 80; TCP is simplest)
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol"            = "TCP"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-port"               = "443"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval"           = "10"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-timeout"            = "6"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-healthy-threshold"   = "2"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-unhealthy-threshold" = "2"
+
+      "service.beta.kubernetes.io/aws-load-balancer-target-group-attributes" = "deregistration_delay.timeout_seconds=15"
+
+      # NLB specifics
+      "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type" = "ip"
+
+      # Reuse the same front-end SG you use for BLS so inbound 443 is actually allowed
+      "service.beta.kubernetes.io/aws-load-balancer-security-groups" = aws_security_group.sapio_nlb_frontend.id
+      "service.beta.kubernetes.io/aws-load-balancer-manage-backend-security-group-rules" = "true"
+
+      # TLS at NLB using ACM cert (use the VALIDATED ARN, as you do for BLS)
+      "service.beta.kubernetes.io/aws-load-balancer-ssl-cert"  = aws_acm_certificate_validation.onlyoffice.certificate_arn
+      "service.beta.kubernetes.io/aws-load-balancer-ssl-ports" = "443"
+
+      # NLB → pod also over TLS (your self-signed cert)
+      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol" = "ssl"
     }
   }
 
   spec {
-    type = "ClusterIP"
+    type                             = "LoadBalancer"
+    allocate_load_balancer_node_ports = false
+    load_balancer_class              = "eks.amazonaws.com/nlb"
 
-    selector = {
-      app = "onlyoffice-documentserver"
-    }
+    selector = { app = "onlyoffice-documentserver" }
 
-    //port 80 as internal service, ALB will handle HTTPS
+    # NLB listens on 443 with ACM, forwards TLS to pod:443
     port {
-      name        = "http"
-      port        = 80
-      target_port = 80
+      name        = "https"
+      port        = 443      # NLB listener
+      target_port = 443      # OnlyOffice HTTPS port inside pod
       protocol    = "TCP"
     }
   }
+
+  # Make sure the cert is Issued before NLB tries to use it
+  depends_on = [aws_acm_certificate_validation.onlyoffice]
 }
 
-# Create ALB Ingress for OnlyOffice
-resource "kubernetes_ingress_v1" "onlyoffice_ingress" {
-  depends_on = [
-    module.eks,
-    aws_acm_certificate_validation.onlyoffice,
-    kubernetes_service.onlyoffice_service
-  ]
+## STEP 5 Route53
 
-  metadata {
-    name      = "onlyoffice-documentserver"
-    namespace = local.onlyoffice_ns
-
-    annotations = {
-      "kubernetes.io/ingress.class"                 = "alb"
-      "alb.ingress.kubernetes.io/scheme"            = "internet-facing"
-      "alb.ingress.kubernetes.io/target-type"       = "ip"
-      "alb.ingress.kubernetes.io/listen-ports"      = "[{\"HTTPS\": 443}]"
-      "alb.ingress.kubernetes.io/certificate-arn"   = aws_acm_certificate_validation.onlyoffice.certificate_arn
-      "alb.ingress.kubernetes.io/ssl-redirect"      = "443"
-    }
-  }
-
-  spec {
-    ingress_class_name = "alb"
-
-    rule {
-      host = local.onlyoffice_subdomain
-
-      http {
-        path {
-          path      = "/"
-          path_type = "Prefix"
-
-          backend {
-            service {
-              name = kubernetes_service.onlyoffice_service.metadata[0].name
-
-              port {
-                number = 80
-              }
-            }
-          }
-        }
-      }
-    }
-  }
+data "aws_lb_hosted_zone_id" "onlyoffice_nlb" {
+  region             = var.aws_region
+  load_balancer_type = "network"
 }
 
-# Expose to the world via Route53 by defined subdomain.
 resource "aws_route53_record" "onlyoffice_dns" {
-  depends_on = [
-    kubernetes_ingress_v1.onlyoffice_ingress,
-    aws_acm_certificate_validation.onlyoffice
-  ]
-
   zone_id = data.aws_route53_zone.root.zone_id
-  name    = local.onlyoffice_subdomain
+  name    = local.onlyoffice_subdomain   # docs.env.customer.com
   type    = "A"
 
   alias {
-    name                   = kubernetes_ingress_v1.onlyoffice_ingress.status[0].load_balancer[0].ingress[0].hostname
-    zone_id                = data.aws_elb_hosted_zone_id.alb.id
+    name                   = kubernetes_service_v1.onlyoffice_service.status[0].load_balancer[0].ingress[0].hostname
+    zone_id                = data.aws_lb_hosted_zone_id.onlyoffice_nlb.id
     evaluate_target_health = false
   }
+
+  depends_on = [
+    kubernetes_service_v1.onlyoffice_service,
+    aws_acm_certificate_validation.onlyoffice
+  ]
 }

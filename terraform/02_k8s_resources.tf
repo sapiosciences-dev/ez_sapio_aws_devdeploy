@@ -5,8 +5,7 @@
 # Logical order: 02 
 ##### "Logical order" refers to the order a human would think of these executions
 ##### (although Terraform will determine actual order executed)
-#
-#
+
 # EBS Storage Class
 
 resource "kubernetes_storage_class" "ebs_gp3" {
@@ -51,6 +50,13 @@ resource "aws_security_group" "sapio_nlb_frontend" {
     description     = "Allow EKS Nodes to access VPC Endpoints"
     from_port       = 8443
     to_port         = 8443
+    protocol        = "tcp"
+    cidr_blocks     = var.user_cidr_blocks
+  }
+  ingress {
+    description     = "Allow EKS Nodes to access VPC Endpoints"
+    from_port       = 443
+    to_port         = 443
     protocol        = "tcp"
     cidr_blocks     = var.user_cidr_blocks
   }

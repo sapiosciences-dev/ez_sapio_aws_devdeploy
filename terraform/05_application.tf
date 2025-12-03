@@ -34,14 +34,15 @@ locals {
 
   java_security_dir  = "/opt/java/openjdk/lib/security"
   velox_app1_user = "sapio_app1"
+  onlyoffice_jwt_secret = random_password.onlyoffice_jwt_secret.result
   app1_env_value = <<-EOF
 TextSearchServerType=elasticsearch
 TextSearchUrl=https://${local.es_release_name}-es-http.${local.es_namespace}.svc.cluster.local:9200
 AttachmentStorageType=amazons3
 AttachmentStorageLocation=${local.s3_bucket_name}
 AttachmentAWSRegion=${var.aws_region}
-IntegratedOfficeUrl=https://${local.onlyoffice_subdomain}
-IntegratedOfficeJwtSecret=$(cat /run/onlyoffice_jwt/jwt-secret)
+IntegratedOfficeUrl=https://${local.onlyoffice_subdomain}/web-apps/
+IntegratedOfficeJwtSecret=${local.onlyoffice_jwt_secret}
 EOF
   build_trust_script = <<-EOS
 set -eu
@@ -253,23 +254,24 @@ resource "kubernetes_deployment_v1" "analytic_server_deployment" {
 
           readiness_probe {
             exec { command = ["/bin/sh","-c","/usr/bin/nc -z -w 2 127.0.0.1 8686 >/dev/null 2>&1 && exit 0 || exit 1"] }
-            period_seconds        = 5
-            timeout_seconds = 3
+            period_seconds        = 9
+            timeout_seconds = 10
             failure_threshold = 5
           }
 
           liveness_probe {
             exec { command = ["/bin/sh","-c","/usr/bin/nc -z -w 2 127.0.0.1 8686 >/dev/null 2>&1 && exit 0 || exit 1"] }
-            period_seconds        = 9
-            timeout_seconds = 3
+            period_seconds        = 11
+            timeout_seconds = 10
             failure_threshold = 5
           }
 
           startup_probe {
             exec { command = ["/bin/sh","-c","/usr/bin/nc -z -w 2 127.0.0.1 8686 >/dev/null 2>&1 && exit 0 || exit 1"] }
-            initial_delay_seconds = 15   # give it a short head start
-            period_seconds        = 5
-            timeout_seconds       = 5
+            initial_delay_seconds = 20   # give it a short head start
+            period_seconds        = 30 # check every 30 seconds
+            timeout_seconds       = 10
+            success_threshold =  1
             failure_threshold     = 60
           }
 
@@ -805,39 +807,38 @@ resource "kubernetes_service_v1" "sapio_bls_nlb" {
     labels    = { app = local.sapio_bls_app_name }
     annotations = {
       "service.beta.kubernetes.io/aws-load-balancer-scheme"          = "internet-facing"
-      # Health check on the same port clients use
-      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol": "HTTP"
-      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-port": "8088"
-      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-path": "/status/healthcheck"
-      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval"  = "10"
-      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-timeout"   = "6"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol"          = "HTTP"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-port"             = "8088"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-path"             = "/status/healthcheck"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval"         = "10"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-timeout"          = "6"
       "service.beta.kubernetes.io/aws-load-balancer-healthcheck-healthy-threshold"   = "2"
       "service.beta.kubernetes.io/aws-load-balancer-healthcheck-unhealthy-threshold" = "2"
-      # Faster cutover on rollouts
+
       "service.beta.kubernetes.io/aws-load-balancer-target-group-attributes" = "deregistration_delay.timeout_seconds=15"
 
-      # Tell AWS LB Controller to create an NLB and target pod IPs directly
+      # NLB settings
       "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type" = "ip"
-
-      # Security
-      "service.beta.kubernetes.io/aws-load-balancer-security-groups" =  aws_security_group.sapio_nlb_frontend.id
+      "service.beta.kubernetes.io/aws-load-balancer-security-groups" = aws_security_group.sapio_nlb_frontend.id
       "service.beta.kubernetes.io/aws-load-balancer-manage-backend-security-group-rules" = "true"
 
-      # SSL Certificate Data
-      "service.beta.kubernetes.io/aws-load-balancer-ssl-cert" = aws_acm_certificate_validation.bls.certificate_arn
-      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol" = "tcp"
+      # TLS at NLB + TLS to backend
+      "service.beta.kubernetes.io/aws-load-balancer-ssl-cert"  = aws_acm_certificate_validation.bls.certificate_arn
       "service.beta.kubernetes.io/aws-load-balancer-ssl-ports" = "443"
+      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol" = "ssl"
     }
   }
+
   spec {
-    type     = "LoadBalancer"
+    type                         = "LoadBalancer"
     allocate_load_balancer_node_ports = false
-    load_balancer_class = "eks.amazonaws.com/nlb"
-    selector = { app = local.sapio_bls_app_name }   # same pods
+    load_balancer_class          = "eks.amazonaws.com/nlb"
+    selector = { app = local.sapio_bls_app_name }
+
     port {
       name        = "https"
-      port        = 443          # NLB listener port
-      target_port = 8443
+      port        = 443     # NLB listener
+      target_port = 8443    # BLS HTTPS port inside pod
       protocol    = "TCP"
     }
     port {
@@ -853,7 +854,11 @@ resource "kubernetes_service_v1" "sapio_bls_nlb" {
       protocol    = "TCP"
     }
   }
-  depends_on = [kubernetes_deployment_v1.sapio_app_deployment]
+}
+
+data "aws_lb_hosted_zone_id" "bls_nlb" {
+  region             = var.aws_region
+  load_balancer_type = "network"
 }
 
 # Expose to the world via Route53 by defined subdomain.
@@ -863,13 +868,18 @@ resource "aws_route53_record" "bls_alias" {
     aws_acm_certificate_validation.bls
   ]
 
+  # This is your *domain* hosted zone (correct)
   zone_id = data.aws_route53_zone.root.zone_id
   name    = local.bls_subdomain
   type    = "A"
 
   alias {
-    name                   = kubernetes_service_v1.sapio_bls_nlb.status[0].load_balancer[0].ingress[0].hostname
-    zone_id                = data.aws_elb_hosted_zone_id.alb.id
+    # NLB DNS name coming from the Service status (correct)
+    name    = kubernetes_service_v1.sapio_bls_nlb.status[0].load_balancer[0].ingress[0].hostname
+
+    # Use the NLB hosted zone ID, not the ALB one
+    zone_id = data.aws_lb_hosted_zone_id.bls_nlb.id
+
     evaluate_target_health = false
   }
 }

@@ -204,6 +204,22 @@
         "route53:UpdateTrafficPolicyInstance"
       ],
       "Resource": "*"
+    },
+
+     {
+      "Sid": "ACMBasics",
+      "Effect": "Allow",
+      "Action": [
+        "acm:RequestCertificate",
+        "acm:DescribeCertificate",
+        "acm:ListCertificates",
+        "acm:ListTagsForCertificate",
+        "acm:AddTagsToCertificate",
+        "acm:RemoveTagsFromCertificate",
+        "acm:UpdateCertificateOptions",
+        "acm:ExportCertificate"
+      ],
+      "Resource": "*"
     }
   ]
 }

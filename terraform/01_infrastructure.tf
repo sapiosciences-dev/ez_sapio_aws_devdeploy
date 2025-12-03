@@ -180,9 +180,17 @@ resource "aws_security_group" "vpc_endpoint_sg" {
   vpc_id = module.vpc.vpc_id
 
   ingress {
-    description     = "Allow EKS Nodes to access VPC Endpoints"
+    description     = "HTTPS 1"
     from_port       = 8443
     to_port         = 8443
+    protocol        = "tcp"
+    security_groups = [local.publish_security_group]
+    cidr_blocks     = var.user_cidr_blocks
+  }
+  ingress {
+    description     = "HTTPS 2"
+    from_port       = 443
+    to_port         = 443
     protocol        = "tcp"
     security_groups = [local.publish_security_group]
     cidr_blocks     = var.user_cidr_blocks
