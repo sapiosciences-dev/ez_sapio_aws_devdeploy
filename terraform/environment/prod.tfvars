@@ -1,7 +1,10 @@
 # Firewall
 admin_cidr_blocks = ["127.0.0.1/32"] # Replace with your local desktop IPs. This is for ARBITRARY REMOTE EXECUTIONS and debugs.
 user_cidr_blocks  = ["0.0.0.0/0"]  # Replace with your end-user IPs unless you want everyone be able to access the app without VPN.
-customer_owned_domain = "" # Customer-Owned Domain registered in route53, this will be used to create endpoint DNS A records.
+# Customer-Owned Domain registered in route53, this will be used to create endpoint DNS A records.
+customer_owned_domain = "REPLACE_ME"
+# Tip: Modify the image if you need a different edition. EE requires subscription and granted access by onlyoffice company.
+onlyoffice_image = "onlyoffice/documentserver_ee:latest"
 
 # Docker Image Data Variables REPLACE ME!
 sapio_bls_docker_image = "REPLACE_ME"
@@ -46,8 +49,6 @@ analytic_server_target_cpu_utilization_percentage = 60
 analytic_server_target_memory_utilization_percentage = 75
 
 ## Onlyoffice
-# Tip: Modify the image if you need a different edition
-onlyoffice_image = "onlyoffice/documentserver_ee:latest"
 onlyoffice_cpu_request = "2"
 onlyoffice_memory_request = "6Gi"
 

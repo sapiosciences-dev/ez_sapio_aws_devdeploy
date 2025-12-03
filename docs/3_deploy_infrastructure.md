@@ -7,6 +7,37 @@ This step will create a new EKS cluster and deploy the application.
 3. Ensure you have completed init terraform backend per instruction in 1_build_terraform_backend.md.
 4. Ensure the EC2 is still attached to the expected IAM role with required permissions, as described in 1_build_terraform_backend.md.
 
+## Domain Configuration
+This script will require you to have a domain fully managed by Route53.
+
+The simplest way to get such a domain is to buy a new domain in Route53 in AWS Console.
+After logging in to AWS console, go to Route 53 click "Domains" => "Registered Domains".
+Click "Register Domain". Find a good domain name to use for your deployment. Then buy the domain.
+
+You will enter the full domain name inside the tfvars file to be created below.
+For example, I bought "sapiodev.com" domain, so I will enter this in the tfvars file to be created below. 
+```text
+customer_owned_domain = "sapiodev.com"
+```
+
+When EKS are deployed, all deployments will have external URL exposed by this domain for all web servers that end user need to access.
+For now, this means there will be 1 web server for onlyoffice, and 1 web server for main BLS.
+At the end of the deployment you will see the address under the domain your end users can log in under the BLS link:
+```text
+==========================
+🔄 Getting URL. Please stand by...⭐️ Here is the URL of you newly deployed application running on EKS:
+💻    https://bls.dev.sapiodev.com/velox_portal    
+⭐️ Here is the OnlyOffice URL your office need to whitelist as well:
+💻    https://docs.dev.sapiodev.com
+⏳ Please be patient. It may take up to a minute to become available
+```
+In the case above, the environment name is "dev", so the bls will be deployed to https://bls.dev.sapiodev.com/velox_portal
+The domain has auto-managed ACM to provide SSL certificate renewal services.
+
+## OnlyOffice Editions
+By default, the script assumes you have access to Enterprise version of Onlyoffice and your AWS environment is granted access to their repo.
+If this is not the case, you may change the OnlyOffice edition to another edition that suits you in tfvars.
+
 ## Create TFVARS file.
 In terraform/environment folder, copy the template.tfvars or one of the preset environment tfvars, rename to the working directory name.
 Set the **env_name** variable to the working directory name.
