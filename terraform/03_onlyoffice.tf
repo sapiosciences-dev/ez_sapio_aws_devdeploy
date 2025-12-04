@@ -74,7 +74,54 @@ resource "kubernetes_namespace" "onlyoffice" {
   metadata {
     name = local.onlyoffice_ns
   }
+
   depends_on = [module.eks]
+}
+
+# 2. THE CLEANER (The Dependent)
+resource "null_resource" "onlyoffice_cleanup" {
+  # We "store" the variables here so they are available during destroy via 'self.triggers'
+  triggers = {
+    namespace    = local.onlyoffice_ns
+    cluster_name = local.cluster_name
+    region       = var.aws_region
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    # Using self.triggers avoids "Invalid reference" error
+    command = <<-EOC
+      set -e
+      REGION="${self.triggers.region}"
+      CLUSTER="${self.triggers.cluster_name}"
+      NS="${self.triggers.namespace}"
+
+      echo "[onlyoffice] Authenticating..."
+      aws eks update-kubeconfig --region "$REGION" --name "$CLUSTER"
+
+      echo "[onlyoffice] Pre-cleaning namespace $NS..."
+
+      # Clean Services (Unblocks Load Balancers)
+      kubectl get svc -n "$NS" --no-headers -o custom-columns=":metadata.name" | while read svc; do
+        kubectl patch svc "$svc" -n "$NS" -p '{"metadata":{"finalizers":[]}}' --type=merge || true
+      done
+      kubectl delete svc --all -n "$NS" --timeout=10s --wait=false || true
+
+      # Clean Pods (Unblocks Namespace Termination)
+      kubectl get pods -n "$NS" --no-headers -o custom-columns=":metadata.name" | while read pod; do
+        kubectl patch pod "$pod" -n "$NS" -p '{"metadata":{"finalizers":[]}}' --type=merge || true
+        kubectl delete pod "$pod" -n "$NS" --grace-period=0 --force --ignore-not-found --wait=false || true
+      done
+
+      sleep 5
+    EOC
+  }
+
+  # THIS IS VALID: The Cleaner depends on the Namespace.
+  # Destruction Order: Cleaner (runs script) -> then Namespace (API call).
+  depends_on = [
+    kubernetes_namespace.onlyoffice
+  ]
 }
 
 resource "kubernetes_secret_v1" "onlyoffice_jwt_secret" {
@@ -309,37 +356,5 @@ resource "aws_route53_record" "onlyoffice_dns" {
   depends_on = [
     kubernetes_service_v1.onlyoffice_service,
     aws_acm_certificate_validation.onlyoffice, kubernetes_namespace.onlyoffice
-  ]
-}
-
-resource "null_resource" "onlyoffice_pod_cleanup" {
-  triggers = {
-    ns  = local.onlyoffice_ns
-    svc = "onlyoffice-documentserver"
-  }
-
-  provisioner "local-exec" {
-    when    = destroy
-    command = <<-EOC
-      set -eu
-      echo "[onlyoffice] Deleting pods in ${self.triggers.ns}..."
-
-      # 1. Kill Pods (Strip finalizers on PODS only)
-      kubectl get pods -n "${self.triggers.ns}" --no-headers -o custom-columns=":metadata.name" | while read pod; do
-        kubectl patch pod "$pod" -n "${self.triggers.ns}" -p '{"metadata":{"finalizers":[]}}' --type=merge || true
-        kubectl delete pod "$pod" -n "${self.triggers.ns}" --grace-period=0 --force --ignore-not-found --wait=false || true
-      done
-    EOC
-  }
-}
-
-resource "time_sleep" "wait_for_lb_drain" {
-  # This makes Terraform wait 90s AFTER the Service is deleted
-  # before it moves on to deleting dependencies (like Certs, Subnets).
-  destroy_duration = "90s"
-
-  depends_on = [
-    kubernetes_service_v1.onlyoffice_service,
-    kubernetes_service_v1.sapio_bls_nlb
   ]
 }
