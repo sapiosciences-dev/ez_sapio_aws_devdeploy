@@ -313,47 +313,64 @@ resource "aws_route53_record" "onlyoffice_dns" {
 }
 
 resource "null_resource" "onlyoffice_pod_cleanup" {
-  # optional, but fine to keep; not referenced in the provisioner
   triggers = {
-    ns = "onlyoffice"
+    ns  = local.onlyoffice_ns
+    svc = "onlyoffice-documentserver"
   }
 
   provisioner "local-exec" {
     when    = destroy
     command = <<-EOC
       set -eu
-      NS="onlyoffice"
 
-      echo "[onlyoffice] Destroy hook: cleaning pods in namespace $NS..."
+      echo "[onlyoffice] *** ENTERING DESTROY CLEANUP HOOK ***"
 
-      # If namespace is already gone, nothing to do
+      NS="${self.triggers.ns}"
+      SVC="${self.triggers.svc}"
+
+      echo "[onlyoffice] Target namespace: $NS"
+      echo "[onlyoffice] Target service:   $SVC"
+
       if ! kubectl get ns "$NS" >/dev/null 2>&1; then
-        echo "[onlyoffice] Namespace $NS not found; skipping pod cleanup."
+        echo "[onlyoffice] Namespace $NS not found; skipping cleanup."
         exit 0
       fi
 
-      # Get *all* pod names in the namespace (running, pending, terminating, whatever)
+      echo "[onlyoffice] Cleaning pods in namespace $NS..."
       PODS="$(kubectl get pod -n "$NS" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' || true)"
 
       if [ -z "$PODS" ]; then
         echo "[onlyoffice] No pods found in namespace $NS; nothing to clean."
-        exit 0
+      else
+        echo "[onlyoffice] Found pods:"
+        echo "$PODS"
+        for P in $PODS; do
+          echo "[onlyoffice] Cleaning pod $P..."
+
+          kubectl patch pod "$P" -n "$NS" \
+            -p '{"metadata":{"finalizers":[]}}' \
+            --type=merge || true
+
+          kubectl delete pod "$P" -n "$NS" \
+            --force --grace-period=0 --ignore-not-found=true --wait=false || true
+        done
       fi
 
-      for P in $PODS; do
-        echo "[onlyoffice] Cleaning pod $P..."
-
-        # 1) Strip any finalizers so K8s won't keep it around
-        kubectl patch pod "$P" -n "$NS" \
+      echo "[onlyoffice] Stripping finalizers from service (if present)..."
+      if kubectl get svc "$SVC" -n "$NS" >/dev/null 2>&1; then
+        kubectl patch svc "$SVC" -n "$NS" \
           -p '{"metadata":{"finalizers":[]}}' \
           --type=merge || true
+      else
+        echo "[onlyoffice] Service $SVC not found; skipping svc finalizer cleanup."
+      fi
 
-        # 2) Force-delete the pod (handles running + terminating cases)
-        kubectl delete pod "$P" -n "$NS" \
-          --force --grace-period=0 --ignore-not-found=true --wait=false || true
-      done
+      echo "[onlyoffice] Stripping finalizers from namespace (if any)..."
+      kubectl patch namespace "$NS" \
+        -p '{"spec":{"finalizers":[]}}' \
+        --type=merge || true
 
-      echo "[onlyoffice] Pod cleanup complete in namespace $NS."
+      echo "[onlyoffice] *** CLEANUP HOOK COMPLETE for namespace $NS ***"
     EOC
   }
 
