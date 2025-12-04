@@ -43,7 +43,8 @@ analytic_server_memory_request = "24Gi"
 analytic_server_cpu_limit = "8"
 analytic_server_memory_limit = "26Gi"
 analytic_server_temp_storage_size = "100Gi"
-analytic_server_min_replicas = 1
+# In order to have uninterrupted service, number of replica must be at least 2, for 21-day mandatory drain.
+analytic_server_min_replicas = 2
 analytic_server_max_replicas = 10
 analytic_server_target_cpu_utilization_percentage = 60
 analytic_server_target_memory_utilization_percentage = 75

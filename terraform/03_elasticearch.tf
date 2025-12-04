@@ -56,6 +56,17 @@ resource "kubectl_manifest" "elasticsearch_eck" {
     }
     spec = {
       version  = var.es_version
+      podDisruptionBudget = {
+        spec = {
+          maxUnavailable = 1 # WARNING this can stop the only remaining replica if we only have 1-1 each per dev set
+
+          selector = {
+            matchLabels = {
+              "elasticsearch.k8s.elastic.co/cluster-name" = local.es_release_name
+            }
+          }
+        }
+      }
       http = {
         tls = {
           selfSignedCertificate = {
