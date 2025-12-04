@@ -21,8 +21,9 @@ eks_cluster_version = "1.34"
 ## Elasticsearch Specs
 es_version = "7.17.12" # Sapio may require a particular version.
 # In order to have uninterrupted service, number of replica must be at least 2, for 21-day mandatory drain.
-es_num_desired_masters = 1
-es_num_desired_datas     = 1
+# Min must be 2 for update cycle to not get stuck.
+es_num_desired_masters = 2
+es_num_desired_datas     = 2
 es_cpu_request         = "1"
 es_cpu_limit           = "2"
 es_memory_limit        = "14Gi"
@@ -44,6 +45,7 @@ analytic_server_cpu_limit = "4"
 analytic_server_memory_limit = "14Gi"
 analytic_server_temp_storage_size = "100Gi"
 # In order to have uninterrupted service, number of replica must be at least 2, for 21-day mandatory drain.
+# For dev this can cause a brief interruption. For prod it should be at least 2.
 analytic_server_min_replicas = 1
 analytic_server_max_replicas = 1
 analytic_server_target_cpu_utilization_percentage = 60

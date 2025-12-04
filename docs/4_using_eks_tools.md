@@ -211,3 +211,37 @@ desired = ceiling(2 * 80 / 60) = ceiling(2.667) = 3
 This means after stabilization period expires, should the metric continue to hold, the next scale up will change the number of pods to 3, an increase of 1 pod in one scale-up.
 
 With multiple targets (CPU and memory utilization), the desired # replica recommendation will use the maximum number of replicas across any metrics used the formula above.
+
+
+# Simulate Scheduled 21-Day Update
+One way to simulate this is to disable schedule and drain each auto nodes.
+First get a list of auto nodes by using the following command:
+
+```shell
+kubectl get nodes --show-labels | grep karpenter
+```
+
+Then for each node in the list, perform disable schedule and force drain like so:
+```shell
+ubuntu@ip-172-31-23-177:~/dev/terraform$kubectl cordon i-029718239198e340f
+kubectl drain  i-029718239198e340f --ignore-daemonsets --delete-emptydir-data --force
+node/i-029718239198e340f already cordoned
+node/i-029718239198e340f already cordoned
+evicting pod elasticsearch/elasticsearch-es-masters-0
+pod/elasticsearch-es-masters-0 evicted
+node/i-029718239198e340f drained
+```
+Notice how the master node is drained and evicted. This can only work if there is **at least 2 replicas of master and 2 replicas of data**.
+
+You can do the test while the importing of chemistry data is in progress using a large SDF file and make sure the elasticsearch server drain has no impact to your insertion.
+
+In order for 21-day drain to work successfully in EKS auto, ensure all PDB has at least 1 drain budget after the system comes online.
+To make sure of this:
+```shell
+ubuntu@ip-172-31-23-177:~/dev/terraform$ kubectl get pdb -A
+NAMESPACE       NAME                       MIN AVAILABLE   MAX UNAVAILABLE   ALLOWED DISRUPTIONS   AGE
+elasticsearch   elasticsearch-es-default   N/A             1                 1                     3h19m
+kube-system     coredns                    N/A             1                 1                     3h22m
+kube-system     ebs-csi-controller         N/A             1                 1                     3h22m
+```
+Notice how "Allowed Disruption" tab is at least 1 on each of the PDB row. This must be set as such to allow for 21-day update cycle to continue.
