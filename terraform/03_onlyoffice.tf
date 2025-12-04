@@ -322,60 +322,24 @@ resource "null_resource" "onlyoffice_pod_cleanup" {
     when    = destroy
     command = <<-EOC
       set -eu
+      echo "[onlyoffice] Deleting pods in ${self.triggers.ns}..."
 
-      echo "[onlyoffice] *** ENTERING DESTROY CLEANUP HOOK ***"
-
-      NS="${self.triggers.ns}"
-      SVC="${self.triggers.svc}"
-
-      echo "[onlyoffice] Target namespace: $NS"
-      echo "[onlyoffice] Target service:   $SVC"
-
-      if ! kubectl get ns "$NS" >/dev/null 2>&1; then
-        echo "[onlyoffice] Namespace $NS not found; skipping cleanup."
-        exit 0
-      fi
-
-      echo "[onlyoffice] Cleaning pods in namespace $NS..."
-      PODS="$(kubectl get pod -n "$NS" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' || true)"
-
-      if [ -z "$PODS" ]; then
-        echo "[onlyoffice] No pods found in namespace $NS; nothing to clean."
-      else
-        echo "[onlyoffice] Found pods:"
-        echo "$PODS"
-        for P in $PODS; do
-          echo "[onlyoffice] Cleaning pod $P..."
-
-          kubectl patch pod "$P" -n "$NS" \
-            -p '{"metadata":{"finalizers":[]}}' \
-            --type=merge || true
-
-          kubectl delete pod "$P" -n "$NS" \
-            --force --grace-period=0 --ignore-not-found=true --wait=false || true
-        done
-      fi
-
-      echo "[onlyoffice] Stripping finalizers from service (if present)..."
-      if kubectl get svc "$SVC" -n "$NS" >/dev/null 2>&1; then
-        kubectl patch svc "$SVC" -n "$NS" \
-          -p '{"metadata":{"finalizers":[]}}' \
-          --type=merge || true
-      else
-        echo "[onlyoffice] Service $SVC not found; skipping svc finalizer cleanup."
-      fi
-
-      echo "[onlyoffice] Stripping finalizers from namespace (if any)..."
-      kubectl patch namespace "$NS" \
-        -p '{"spec":{"finalizers":[]}}' \
-        --type=merge || true
-
-      echo "[onlyoffice] *** CLEANUP HOOK COMPLETE for namespace $NS ***"
+      # 1. Kill Pods (Strip finalizers on PODS only)
+      kubectl get pods -n "${self.triggers.ns}" --no-headers -o custom-columns=":metadata.name" | while read pod; do
+        kubectl patch pod "$pod" -n "${self.triggers.ns}" -p '{"metadata":{"finalizers":[]}}' --type=merge || true
+        kubectl delete pod "$pod" -n "${self.triggers.ns}" --grace-period=0 --force --ignore-not-found --wait=false || true
+      done
     EOC
   }
+}
+
+resource "time_sleep" "wait_for_lb_drain" {
+  # This makes Terraform wait 90s AFTER the Service is deleted
+  # before it moves on to deleting dependencies (like Certs, Subnets).
+  destroy_duration = "90s"
 
   depends_on = [
-    kubernetes_deployment.onlyoffice_documentserver,
     kubernetes_service_v1.onlyoffice_service,
+    kubernetes_service_v1.sapio_bls_nlb
   ]
 }
