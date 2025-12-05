@@ -179,7 +179,7 @@ resource "kubernetes_deployment" "onlyoffice_documentserver" {
       }
 
       spec {
-        # --- Init container: generate self-signed cert into shared volume ---
+        # --- Init container ---
         init_container {
           name  = "generate-onlyoffice-tls"
           image = var.onlyoffice_image
@@ -197,6 +197,14 @@ resource "kubernetes_deployment" "onlyoffice_documentserver" {
         container {
           name  = "documentserver"
           image = var.onlyoffice_image
+
+          resources {
+            requests = {
+              cpu                 = var.onlyoffice_cpu_request    # Default: "2"
+              memory              = var.onlyoffice_memory_request # Default: "6Gi"
+              ephemeral-storage = "4Gi"
+            }
+          }
 
           # HTTP (for health) and HTTPS (for backend TLS)
           port {
@@ -226,7 +234,6 @@ resource "kubernetes_deployment" "onlyoffice_documentserver" {
             }
           }
 
-          # Make HTTPS explicit (matches the cert paths from init container)
           env {
             name = "SSL_CERTIFICATE_PATH"
             value = "/var/www/onlyoffice/Data/certs/tls.crt"
@@ -240,14 +247,16 @@ resource "kubernetes_deployment" "onlyoffice_documentserver" {
             value = "/var/www/onlyoffice/Data/certs/dhparam.pem"
           }
 
-          # probes (still fine to hit HTTP 80)
+          # --- UPDATED: PROBES ---
+          # Increased delay to 180s to prevent killing the pod during heavy boot-up
           liveness_probe {
             http_get {
               path = "/"
               port = 80
             }
-            initial_delay_seconds = 20
+            initial_delay_seconds = 180
             period_seconds        = 30
+            failure_threshold     = 3
           }
 
           readiness_probe {
@@ -255,8 +264,9 @@ resource "kubernetes_deployment" "onlyoffice_documentserver" {
               path = "/"
               port = 80
             }
-            initial_delay_seconds = 5
+            initial_delay_seconds = 30
             period_seconds        = 10
+            failure_threshold     = 3
           }
 
           volume_mount {
@@ -266,7 +276,6 @@ resource "kubernetes_deployment" "onlyoffice_documentserver" {
           }
         }
 
-        # Shared EmptyDir volume between init + main container
         volume {
           name = "onlyoffice-tls"
           empty_dir {}
