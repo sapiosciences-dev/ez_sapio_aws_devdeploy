@@ -3,10 +3,11 @@ locals {
   onlyoffice_subdomain = "docs.${var.env_name}.${var.customer_owned_domain}"
   onlyoffice_ns        = "onlyoffice"
 
-  # Init script to generate a self-signed cert inside the pod
+  # Init script to generate a self-signed cert AND extract the plugin
   onlyoffice_tls_init_script = <<-EOS
     set -eu
 
+    # --- PART 1: TLS GENERATION ---
     CERT_DIR="/var/www/onlyoffice/Data/certs"
     mkdir -p "$CERT_DIR"
 
@@ -19,17 +20,69 @@ locals {
         -subj "/CN=${local.onlyoffice_subdomain}"
     fi
 
-    # Generate dhparam if missing (expensive but once per pod)
+    # Generate dhparam if missing
     if [ ! -s "$CERT_DIR/dhparam.pem" ]; then
       echo "Generating dhparam.pem..."
       openssl dhparam -out "$CERT_DIR/dhparam.pem" 2048
     fi
 
     chmod 600 "$CERT_DIR/tls.key"
+
+    # --- PART 2: PLUGIN EXTRACTION ---
+    echo "Starting Veloxity Plugin Extraction..."
+
+    # We need to install unzip if it's not present (the base image is often minimal)
+    # If the image is Ubuntu/Debian based:
+    if ! command -v unzip &> /dev/null; then
+        echo "Unzip not found. Attempting install..."
+        apt-get update && apt-get install -y unzip || echo "Unzip install failed, hoping for the best..."
+    fi
+
+    PLUGIN_DEST="/var/www/onlyoffice/documentserver/sdkjs-plugins/veloxity-1.3.0"
+
+    # Ensure destination exists
+    mkdir -p "$PLUGIN_DEST"
+
+    # Extract directly from the mounted ConfigMap (read-only) to the shared volume
+    # -o: overwrite without prompting
+    # -d: destination directory
+    # -j: junk paths (flatten) - REMOVED this flag because we want the internal structure if needed,
+    #     but based on your request, we are extracting specifically to the target folder.
+
+    # NOTE: The zip contains "veloxity-1.3.0/code.js".
+    # We want the contents of that folder to end up in "$PLUGIN_DEST".
+    # We extract to a temporary spot then move, to handle the folder nesting cleanly.
+
+    TMP_EXTRACT="/tmp/veloxity_extract"
+    mkdir -p "$TMP_EXTRACT"
+
+    echo "Unzipping file..."
+    unzip -o /plugin-source/veloxity_plugin.zip -d "$TMP_EXTRACT"
+
+    echo "Moving files to final destination..."
+    # Move the CONTENTS of the extracted 'veloxity-1.3.0' folder to our target mount
+    cp -r "$TMP_EXTRACT/veloxity-1.3.0/." "$PLUGIN_DEST/"
+
+    echo "Plugin extraction complete."
+    ls -la "$PLUGIN_DEST"
   EOS
 }
 
 ## Step 2 Resources
+
+resource "kubernetes_config_map" "veloxity_plugin" {
+  metadata {
+    name      = "veloxity-plugin-zip"
+    namespace = local.onlyoffice_ns
+  }
+
+  # YQ WARNING: total config map data in EKS must be under 1MB, not per row but entire config map.
+  binary_data = {
+    "veloxity_plugin.zip" = "${filebase64("${path.module}/files/veloxity-onlyoffice-plugin-1.3.0.zip")}"
+  }
+
+  depends_on = [kubernetes_namespace.onlyoffice]
+}
 
 # Prove the domain ownership to AWS Certificate Manager (ACM) for the OnlyOffice subdomain from Route53.
 resource "aws_acm_certificate" "onlyoffice" {
@@ -179,10 +232,16 @@ resource "kubernetes_deployment" "onlyoffice_documentserver" {
       }
 
       spec {
-        # --- Init container ---
+        termination_grace_period_seconds = 0
+        # --- Init container (TLS + Plugin) ---
         init_container {
           name  = "generate-onlyoffice-tls"
           image = var.onlyoffice_image
+
+          # Run as root to ensure we can install unzip and write to shared dirs
+          security_context {
+            run_as_user = 0
+          }
 
           command = ["/bin/sh", "-c"]
           args    = [local.onlyoffice_tls_init_script]
@@ -190,6 +249,18 @@ resource "kubernetes_deployment" "onlyoffice_documentserver" {
           volume_mount {
             name       = "onlyoffice-tls"
             mount_path = "/var/www/onlyoffice/Data/certs"
+          }
+
+          # Mount the source Zip (Read Only from ConfigMap)
+          volume_mount {
+            name       = "plugin-source-zip"
+            mount_path = "/plugin-source"
+          }
+
+          # Mount the shared storage where we will write the extracted files
+          volume_mount {
+            name       = "plugin-storage"
+            mount_path = "/var/www/onlyoffice/documentserver/sdkjs-plugins/veloxity-1.3.0"
           }
         }
 
@@ -200,13 +271,12 @@ resource "kubernetes_deployment" "onlyoffice_documentserver" {
 
           resources {
             requests = {
-              cpu                 = var.onlyoffice_cpu_request    # Default: "2"
-              memory              = var.onlyoffice_memory_request # Default: "6Gi"
-              ephemeral-storage = "4Gi"
+              cpu                 = var.onlyoffice_cpu_request
+              memory              = var.onlyoffice_memory_request
+              ephemeral-storage   = "4Gi"
             }
           }
 
-          # HTTP (for health) and HTTPS (for backend TLS)
           port {
             container_port = 80
           }
@@ -214,6 +284,7 @@ resource "kubernetes_deployment" "onlyoffice_documentserver" {
             container_port = 443
           }
 
+          # --- FIXED ENV BLOCKS (Expanded to multi-line) ---
           env {
             name  = "USE_UNAUTHORIZED_STORAGE"
             value = "true"
@@ -235,20 +306,21 @@ resource "kubernetes_deployment" "onlyoffice_documentserver" {
           }
 
           env {
-            name = "SSL_CERTIFICATE_PATH"
+            name  = "SSL_CERTIFICATE_PATH"
             value = "/var/www/onlyoffice/Data/certs/tls.crt"
           }
+
           env {
-            name = "SSL_KEY_PATH"
+            name  = "SSL_KEY_PATH"
             value = "/var/www/onlyoffice/Data/certs/tls.key"
           }
+
           env {
-            name = "SSL_DHPARAM_PATH"
+            name  = "SSL_DHPARAM_PATH"
             value = "/var/www/onlyoffice/Data/certs/dhparam.pem"
           }
 
-          # --- UPDATED: PROBES ---
-          # Increased delay to 180s to prevent killing the pod during heavy boot-up
+          # --- Probes ---
           liveness_probe {
             http_get {
               path = "/"
@@ -269,15 +341,37 @@ resource "kubernetes_deployment" "onlyoffice_documentserver" {
             failure_threshold     = 3
           }
 
+          # Mount TLS certs
           volume_mount {
             name       = "onlyoffice-tls"
             mount_path = "/var/www/onlyoffice/Data/certs"
             read_only  = true
           }
+
+          # Mount the plugin folder
+          volume_mount {
+            name       = "plugin-storage"
+            mount_path = "/var/www/onlyoffice/documentserver/sdkjs-plugins/veloxity-1.3.0"
+          }
         }
 
+        # --- VOLUMES ---
         volume {
           name = "onlyoffice-tls"
+          empty_dir {}
+        }
+
+        # Volume 1: Holds the raw zip file from Terraform ConfigMap
+        volume {
+          name = "plugin-source-zip"
+          config_map {
+            name = "veloxity-plugin-zip"
+          }
+        }
+
+        # Volume 2: Shared scratch space for the specific plugin folder
+        volume {
+          name = "plugin-storage"
           empty_dir {}
         }
       }
